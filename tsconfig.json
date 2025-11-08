@@ -15,7 +15,14 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/config/*": ["./config/*"],
+      "~/components/*": ["./components/*"],
+      "~/lib/*": ["./lib/*"],
+      "@/*": ["./*"]
+    }
   },
   "exclude": ["node_modules"]
 }

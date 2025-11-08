@@ -1,59 +1,37 @@
-import { cookies } from 'next/headers';
+// app/layout.tsx
+import "./globals.css";
+import { Inter } from "next/font/google";
+import Link from "next/link";
 
-import { Toaster } from '@kit/ui/sonner';
-import { cn } from '@kit/ui/utils';
+const inter = Inter({ subsets: ["latin"] });
 
-import { RootProviders } from '~/components/root-providers';
-import { heading, sans } from '~/lib/fonts';
-import { createI18nServerInstance } from '~/lib/i18n/i18n.server';
-import { generateRootMetadata } from '~/lib/root-metdata';
+export const metadata = {
+  title: "MakerKit - IA Conception Produit",
+  description: "Prototype : idéation → prompt → image → 3D/STEP",
+};
 
-import '../styles/globals.css';
-
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { language } = await createI18nServerInstance();
-  const theme = await getTheme();
-  const className = getClassName(theme);
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={language} className={className}>
-      <body>
-        <RootProviders theme={theme} lang={language}>
-          {children}
-        </RootProviders>
+    <html lang="fr">
+      <body className={inter.className + " bg-gray-50 min-h-screen"}>
+        <header className="bg-white border-b">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <Link href="/" className="text-lg font-bold">
+              MakerKit IA
+            </Link>
+            <nav className="space-x-4">
+              <Link href="/projects/list" className="text-sm hover:underline">Projets</Link>
+              <Link href="/projects/new" className="text-sm hover:underline">Nouveau</Link>
+            </nav>
+          </div>
+        </header>
 
-        <Toaster richColors={true} theme={theme} position="top-center" />
+        <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
+
+        <footer className="text-center text-sm text-gray-500 py-8">
+          © {new Date().getFullYear()} MakerKit - Prototype
+        </footer>
       </body>
     </html>
   );
 }
-
-function getClassName(theme?: string) {
-  const dark = theme === 'dark';
-  const light = !dark;
-
-  const font = [sans.variable, heading.variable].reduce<string[]>(
-    (acc, curr) => {
-      if (acc.includes(curr)) return acc;
-
-      return [...acc, curr];
-    },
-    [],
-  );
-
-  return cn('bg-background min-h-screen antialiased', ...font, {
-    dark,
-    light,
-  });
-}
-
-async function getTheme() {
-  const cookiesStore = await cookies();
-  return cookiesStore.get('theme')?.value as 'light' | 'dark' | 'system';
-}
-
-export const generateMetadata = generateRootMetadata;
