@@ -1,209 +1,237 @@
+// app/page.tsx - VERSION CORRIGÉE
 "use client";
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { UserMenu } from "../components/auth/UserMenu";
 
 export default function Home() {
-  const [idea, setIdea] = useState("");
-  const [method, setMethod] = useState<"TRIZ" | "DFX">("TRIZ");
-  const [selectedParams, setSelectedParams] = useState<string[]>([]);
-  const [prompt, setPrompt] = useState<string | null>(null);
-  const [generatingPrompt, setGeneratingPrompt] = useState(false);
-  const [generatingDesign, setGeneratingDesign] = useState(false);
-  const [designUrl, setDesignUrl] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  // --- Listes des paramètres TRIZ et DFX ---
-  const trizPrinciples = [
-    "Segmentation", "Extraction", "Qualité locale", "Asymétrie", "Fusion",
-    "Extraction partielle", "Équivalence universelle", "Inversion",
-    "Anticipation", "Action préliminaire", "Cushioning", "Intermédiaire",
-    "Inversion dynamique", "Sphéricité", "Transformation des propriétés",
-    "Partage", "Action partielle ou excessive", "Mécanique vibratoire",
-    "Mécanique continue", "Changement de couleur", "Homogénéisation",
-    "Expansion et contraction", "Retournement", "Mécanique flexible",
-    "Usage de la dynamique", "Utilisation des paramètres physiques",
-    "Utilisation d’états intermédiaires", "Mise en phase", "Réaction chimique",
-    "Absorption", "Chaleur", "Écoulement", "Rotation", "Copie",
-    "Transformation des champs", "Économie", "Élimination", "Automatisation",
-    "Priorité"
-  ];
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setLoading(false);
+      
+      // ⚠️ SUPPRIMER la redirection automatique
+      // if (user) {
+      //   router.push('/dashboard');
+      // }
+    };
+    
+    checkUser();
+  }, [router]);
 
-  const dfxOptions = [
-    "DFP – Design For Procurement",
-    "DFM – Design For Manufacture",
-    "DFT – Design For Test",
-    "DFD – Design For Diagnosability",
-    "DFA – Design For Assembly",
-    "DFE – Design For Environment",
-    "DFF – Design For Fabrication",
-    "DFS – Design For Serviceability",
-    "DFR – Design For Reliability",
-    "DFC – Design For Cost"
-  ];
-
-  const methodParams = method === "TRIZ" ? trizPrinciples : dfxOptions;
-
-  // --- Sélection des paramètres ---
-  const toggleParam = (param: string) => {
-    setSelectedParams(prev =>
-      prev.includes(param)
-        ? prev.filter(p => p !== param)
-        : [...prev, param]
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-indigo-800">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Chargement...</p>
+        </div>
+      </div>
     );
-  };
-
-  // --- Génération du prompt ---
-  const handleGeneratePrompt = async () => {
-    if (!idea.trim()) return alert("Veuillez entrer votre idée.");
-    if (selectedParams.length === 0)
-      return alert("Veuillez sélectionner au moins un paramètre.");
-
-    setGeneratingPrompt(true);
-    setPrompt(null);
-
-    try {
-      const res = await fetch("/api/generate-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea, method, params: selectedParams }),
-      });
-
-      const data = await res.json();
-      setPrompt(data.prompt);
-    } catch (err) {
-      console.error(err);
-      alert("Erreur lors de la génération du prompt.");
-    } finally {
-      setGeneratingPrompt(false);
-    }
-  };
-
-  // --- Génération du design ---
-  const handleGenerateDesign = async () => {
-    if (!prompt) return alert("Veuillez générer un prompt d'abord.");
-    setGeneratingDesign(true);
-    setDesignUrl(null);
-
-    try {
-      const res = await fetch("/api/generate-design", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-
-      const data = await res.json();
-
-      // ✅ Correction ici : la route renvoie { image }
-      if (data.image) {
-        setDesignUrl(data.image);
-      } else if (data.error) {
-        alert("Erreur : " + data.error);
-      } else {
-        alert("Aucune image reçue !");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Erreur lors de la génération du design.");
-    } finally {
-      setGeneratingDesign(false);
-    }
-  };
+  }
 
   return (
-    <section className="bg-white p-8 rounded shadow space-y-6">
-      <h1 className="text-2xl font-bold text-center">
-        🎨 Conception produit augmentée par l'IA (TRIZ / DFX)
-      </h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 to-indigo-800">
+      {/* Navigation */}
+      <nav className="bg-white/10 backdrop-blur-sm border-b border-white/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <div className="text-white text-2xl font-bold">DesignPro AI</div>
+            </div>
+            <div className="flex items-center space-x-4">
+              {user ? (
+                <div className="flex items-center space-x-4">
+                  <Link
+                    href="/dashboard"
+                    className="bg-white text-blue-900 px-6 py-2 rounded-lg font-semibold hover:bg-blue-50"
+                  >
+                    Tableau de Bord
+                  </Link>
+                  <UserMenu />
+                </div>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="text-white hover:text-blue-200 px-4 py-2"
+                  >
+                    Connexion
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="bg-white text-blue-900 px-6 py-2 rounded-lg font-semibold hover:bg-blue-50"
+                  >
+                    Commencer Gratuitement
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
 
-      {/* ---- Zone idée ---- */}
-      <div className="space-y-2">
-        <label className="block font-medium">💡 Votre idée :</label>
-        <textarea
-          className="w-full border p-2 rounded"
-          value={idea}
-          onChange={(e) => setIdea(e.target.value)}
-          rows={3}
-          placeholder="Décrivez votre idée de produit..."
-        />
+      {/* Hero Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center">
+          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
+            Conception Produit
+            <span className="block text-blue-200">Augmentée par IA</span>
+          </h1>
+          <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-3xl mx-auto leading-relaxed">
+            Transformez vos idées en prototypes validés avec l'intelligence artificielle. 
+            Méthodologies professionnelles, génération assistée, collaboration d'équipe.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+            {user ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="bg-white text-blue-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all shadow-2xl"
+                >
+                  📊 Aller au Tableau de Bord
+                </Link>
+                <Link
+                  href="/dashboard/projects/new"
+                  className="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-all"
+                >
+                  🚀 Créer un Nouveau Projet
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/signup"
+                  className="bg-white text-blue-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all shadow-2xl"
+                >
+                  🚀 Commencer Maintenant
+                </Link>
+                <Link
+                  href="#features"
+                  className="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-all"
+                >
+                  📚 Découvrir les Fonctionnalités
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto text-white">
+            <div className="text-center">
+              <div className="text-3xl font-bold mb-2">50+</div>
+              <div className="text-blue-200">Projets Conçus</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold mb-2">4</div>
+              <div className="text-blue-200">Méthodologies Expertes</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold mb-2">100%</div>
+              <div className="text-blue-200">Satisfaction Client</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* ---- Choix méthode et paramètres ---- */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:gap-6">
-        <div className="flex items-center gap-2 mb-4 sm:mb-0">
-          <label>Méthode :</label>
-          <select
-            className="border p-1 rounded"
-            value={method}
-            onChange={(e) => {
-              const m = e.target.value as "TRIZ" | "DFX";
-              setMethod(m);
-              setSelectedParams([]);
-            }}
-          >
-            <option value="TRIZ">TRIZ</option>
-            <option value="DFX">Design-for-X (DFX)</option>
-          </select>
-        </div>
+      {/* Features Section */}
+      <div id="features" className="bg-white py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Pourquoi Choisir DesignPro AI ?
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Une plateforme complète pour les professionnels de la conception produit
+            </p>
+          </div>
 
-        <div className="flex-1">
-          <label className="block font-medium mb-2">
-            Paramètres disponibles :
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-80 overflow-y-auto border p-2 rounded">
-            {methodParams.map((p) => (
-              <label
-                key={p}
-                className="flex items-center gap-2 border p-1 rounded hover:bg-gray-100 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedParams.includes(p)}
-                  onChange={() => toggleParam(p)}
-                />
-                <span className="text-sm">{p}</span>
-              </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                icon: "🔧",
+                title: "Méthodologies Structurées",
+                description: "TRIZ, Design for X, Design Thinking, Value Engineering - Choisissez l'approche adaptée à votre projet"
+              },
+              {
+                icon: "🤖",
+                title: "IA Générative Avancée",
+                description: "Génération de concepts, prompts optimisés, visualisations 3D et fichiers techniques"
+              },
+              {
+                icon: "👥",
+                title: "Collaboration d'Équipe",
+                description: "Invitez collaborateurs, gérez les permissions, travaillez en temps réel"
+              },
+              {
+                icon: "📊",
+                title: "Suivi de Projet",
+                description: "Tableau de bord complet, étapes de validation, rapports d'avancement"
+              },
+              {
+                icon: "🎯",
+                title: "Résultats Professionnels",
+                description: "Designs prêts pour la production, fichiers STEP, documentation technique"
+              },
+              {
+                icon: "⚡",
+                title: "Processus Rapide",
+                description: "Réduisez le temps de conception de 70% avec l'assistance IA"
+              }
+            ].map((feature, index) => (
+              <div key={index} className="bg-gray-50 p-6 rounded-xl border border-gray-200 hover:border-blue-300 transition-all">
+                <div className="text-3xl mb-4">{feature.icon}</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
+                <p className="text-gray-600">{feature.description}</p>
+              </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* ---- Boutons d'action ---- */}
-      <div className="flex gap-4 mt-4 justify-center">
-        <button
-          onClick={handleGeneratePrompt}
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-          disabled={generatingPrompt || selectedParams.length === 0}
-        >
-          {generatingPrompt ? "⏳ Génération du prompt..." : "🧠 Générer prompt"}
-        </button>
-
-        <button
-          onClick={handleGenerateDesign}
-          className="px-4 py-2 bg-green-600 text-white rounded"
-          disabled={!prompt || generatingDesign}
-        >
-          {generatingDesign ? "🎨 Génération design..." : "🚀 Générer design"}
-        </button>
+      {/* CTA Section */}
+      <div className="bg-blue-800 py-16">
+        <div className="max-w-4xl mx-auto text-center px-4">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Prêt à Transformer Votre Processus de Conception ?
+          </h2>
+          <p className="text-blue-100 text-lg mb-8">
+            Rejoignez les entreprises innovantes qui utilisent déjà DesignPro AI
+          </p>
+          {user ? (
+            <div className="space-x-4">
+              <Link
+                href="/dashboard"
+                className="bg-white text-blue-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 inline-block"
+              >
+                📊 Tableau de Bord
+              </Link>
+              <Link
+                href="/dashboard/projects/new"
+                className="bg-green-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-700 inline-block"
+              >
+                🚀 Nouveau Projet
+              </Link>
+            </div>
+          ) : (
+            <Link
+              href="/signup"
+              className="bg-white text-blue-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 inline-block"
+            >
+              S'inscrire Gratuitement
+            </Link>
+          )}
+        </div>
       </div>
-
-      {/* ---- Affichage du prompt généré ---- */}
-      {prompt && (
-        <div className="border p-4 rounded bg-gray-50 mt-4">
-          <h2 className="font-bold mb-2">🧩 Prompt généré :</h2>
-          <pre className="whitespace-pre-wrap">{prompt}</pre>
-        </div>
-      )}
-
-      {/* ---- Affichage de l'image générée ---- */}
-      {designUrl && (
-        <div className="border p-4 rounded bg-gray-50 mt-4 text-center">
-          <h2 className="font-bold mb-2">🖼️ Design généré :</h2>
-          <img
-            src={designUrl}
-            alt="Design généré"
-            className="max-w-lg mx-auto rounded-lg shadow-lg"
-          />
-        </div>
-      )}
-    </section>
+    </div>
   );
 }
+
