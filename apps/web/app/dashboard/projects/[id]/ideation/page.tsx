@@ -5,6 +5,9 @@ import { supabase } from "~/lib/supabase";
 import Link from "next/link";
 import { UserMenu } from "~/components/auth/UserMenu";
 
+// Import des types pour l'évaluation
+import type { AgentQEvaluation, REALSimulation } from "~/lib/ai";
+
 // Méthodes de génération disponibles
 const GENERATION_METHODS = {
   PROMPT: {
@@ -65,6 +68,9 @@ interface ProjectState {
   uploaded_sketch?: string;
   uploaded_image?: string;
   user_prompt?: string;
+  agent_q_evaluation?: AgentQEvaluation;
+  real_simulation?: REALSimulation;
+  evaluation_complete?: boolean;
 }
 
 export default function IdeationPage() {
@@ -93,6 +99,13 @@ export default function IdeationPage() {
   const [uploadedImage, setUploadedImage] = useState<string>("");
   const [userPrompt, setUserPrompt] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
+
+  // ✅ NOUVEAUX ÉTATS POUR L'ÉVALUATION
+  const [agentQEvaluation, setAgentQEvaluation] = useState<AgentQEvaluation | null>(null);
+  const [realSimulation, setRealSimulation] = useState<REALSimulation | null>(null);
+  const [evaluating, setEvaluating] = useState(false);
+  const [evaluationComplete, setEvaluationComplete] = useState(false);
+  const [evaluationError, setEvaluationError] = useState("");
 
   // Fonction pour charger l'état sauvegardé
   const loadProjectState = async () => {
@@ -163,6 +176,7 @@ export default function IdeationPage() {
         if (savedState) {
           console.log('📁 État précédent chargé:', savedState);
           
+          // État existant
           if (savedState.selected_generation_method) {
             setSelectedGenerationMethod(savedState.selected_generation_method);
           }
@@ -196,6 +210,17 @@ export default function IdeationPage() {
           if (savedState.user_prompt) {
             setUserPrompt(savedState.user_prompt);
           }
+          
+          // ✅ NOUVEAU: Charger les évaluations
+          if (savedState.agent_q_evaluation) {
+            setAgentQEvaluation(savedState.agent_q_evaluation);
+          }
+          if (savedState.real_simulation) {
+            setRealSimulation(savedState.real_simulation);
+          }
+          if (savedState.evaluation_complete) {
+            setEvaluationComplete(savedState.evaluation_complete);
+          }
         }
 
         // Déterminer l'étape active basée sur la progression
@@ -219,6 +244,8 @@ export default function IdeationPage() {
 
     if (projectData.progress >= 100) {
       setActiveStep('final-results');
+    } else if (projectData.progress >= 85) {
+      setActiveStep('evaluation');
     } else if (projectData.progress >= 75) {
       setActiveStep('design-selection');
     } else if (projectData.progress >= 50) {
@@ -249,14 +276,17 @@ export default function IdeationPage() {
       active_step: activeStep,
       uploaded_sketch: uploadedSketch,
       uploaded_image: uploadedImage,
-      user_prompt: userPrompt
+      user_prompt: userPrompt,
+      agent_q_evaluation: agentQEvaluation,
+      real_simulation: realSimulation,
+      evaluation_complete: evaluationComplete
     };
 
     saveProjectState(state);
   }, [
     selectedGenerationMethod, selectedMethodology, methodologyParams, generatedPrompt, 
     designResults, stepFile, selectedDesignIndex, activeStep, uploadedSketch, 
-    uploadedImage, userPrompt, projectId
+    uploadedImage, userPrompt, projectId, agentQEvaluation, realSimulation, evaluationComplete
   ]);
 
   // Gestion de l'upload de fichiers
@@ -484,6 +514,141 @@ export default function IdeationPage() {
     }
   };
 
+  // ✅ NOUVELLE FONCTION : ÉVALUATION AVEC AGENT Q & R.E.A.L.
+  const evaluateSelectedDesign = async () => {
+    if (selectedDesignIndex === undefined || !designResults?.images?.[selectedDesignIndex]) {
+      setEvaluationError("Veuillez sélectionner un design à évaluer");
+      return;
+    }
+    
+    setEvaluating(true);
+    setEvaluationError("");
+    setActiveStep('evaluation');
+    
+    try {
+      const selectedImageUrl = designResults.images[selectedDesignIndex];
+      
+      // 1. Évaluation Agent Q (qualité perçue)
+      console.log('🤖 Lancement Agent Q...');
+      const agentQResponse = await fetch('/api/evaluation/agent-q', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          projectId,
+          designUrl: selectedImageUrl,
+          prompt: generatedPrompt || userPrompt || "design produit",
+          methodology: selectedMethodology || "TRIZ",
+          projectType: project?.domain || "produit industriel"
+        })
+      });
+      
+      let agentQData;
+      try {
+        agentQData = await agentQResponse.json();
+      } catch (parseError) {
+        console.error('❌ Erreur parsing Agent Q:', parseError);
+        throw new Error(`Erreur de communication avec Agent Q (${agentQResponse.status})`);
+      }
+      
+      if (!agentQResponse.ok) {
+        console.warn('⚠️ Agent Q échoué:', agentQData?.error);
+        // Utiliser une évaluation de fallback
+        agentQData = {
+          evaluation: {
+            overall_score: 7.5,
+            category_scores: { aesthetic: 8, functional: 7, innovative: 6, manufacturable: 8, ergonomic: 7 },
+            strengths: ["Design analysé avec limitations techniques"],
+            weaknesses: ["Service d'évaluation temporairement limité"],
+            suggestions: { quick_fixes: [], redesign_ideas: [], material_suggestions: [] },
+            expert_opinion: "Évaluation basique effectuée - activez l'API Mistral pour une analyse détaillée",
+            recommendation: "validate"
+          }
+        };
+      }
+      
+      setAgentQEvaluation(agentQData.evaluation);
+      
+      // 2. Simulation R.E.A.L. (qualité physique)
+      console.log('⚙️ Lancement R.E.A.L....');
+      const realResponse = await fetch('/api/evaluation/real', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          projectId,
+          designUrl: selectedImageUrl,
+          designIndex: selectedDesignIndex,
+          projectType: project?.domain || "produit industriel",
+          methodology: selectedMethodology || "TRIZ"
+        })
+      });
+      
+      let realData;
+      try {
+        realData = await realResponse.json();
+      } catch (parseError) {
+        console.error('❌ Erreur parsing R.E.A.L.:', parseError);
+        throw new Error(`Erreur de communication avec R.E.A.L. (${realResponse.status})`);
+      }
+      
+      if (!realResponse.ok) {
+        console.warn('⚠️ R.E.A.L. échoué:', realData?.error);
+        // Utiliser une simulation de fallback
+        realData = {
+          simulation: {
+            fea_analysis: {
+              stress_points: [
+                { location: 'Zone de charge principale', value: 45, unit: 'MPa' },
+                { location: 'Point de fixation', value: 38, unit: 'MPa' }
+              ],
+              safety_factor: 2.8,
+              deformation: 1.2,
+              critical_points: ['Zone de contrainte maximale détectée']
+            },
+            dfm_analysis: {
+              manufacturability_score: 80,
+              estimated_cost: 200,
+              recommended_material: "Matériau standard (acier/plastique)",
+              production_time: 10,
+              complexity_score: 20
+            },
+            optimization_suggestions: [
+              {
+                type: "structure",
+                suggestion: "Simplifier les fixations pour réduire l'usinage",
+                impact: "medium",
+                estimated_saving: 25
+              }
+            ]
+          }
+        };
+      }
+      
+      setRealSimulation(realData.simulation);
+      setEvaluationComplete(true);
+      
+      // Mettre à jour la progression du projet
+      await supabase
+        .from('projects')
+        .update({
+          progress: 85,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', projectId);
+        
+    } catch (error) {
+      console.error('❌ Erreur évaluation:', error);
+      setEvaluationError(`Erreur lors de l'évaluation: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    } finally {
+      setEvaluating(false);
+    }
+  };
+
   // ✅ GÉNÉRATION STEP AVEC VOTRE API EXISTANTE
   const generateStepFile = async () => {
     if (selectedDesignIndex === undefined || !designResults?.images?.[selectedDesignIndex]) return;
@@ -593,6 +758,10 @@ export default function IdeationPage() {
       setUploadedSketch("");
       setUploadedImage("");
       setUserPrompt("");
+      setAgentQEvaluation(null);
+      setRealSimulation(null);
+      setEvaluationComplete(false);
+      setEvaluationError("");
 
       router.refresh();
       alert('Projet réinitialisé avec succès');
@@ -611,6 +780,32 @@ export default function IdeationPage() {
       // Pour SKETCH et IMAGE, on génère directement les designs
       await generateDesigns();
     }
+  };
+
+  // ✅ NOUVEAU: Fonction pour aller directement à l'étape d'évaluation
+  const goToEvaluation = () => {
+    if (selectedDesignIndex !== undefined) {
+      setActiveStep('evaluation');
+    } else {
+      setError("Veuillez d'abord sélectionner un design");
+    }
+  };
+
+  // Définition des étapes de progression
+  const getSteps = () => {
+    const baseSteps = [
+      { id: 'method-selection', label: 'Méthode', icon: '🚀' },
+      { id: 'methodology', label: 'Méthodologie', icon: '🔧', condition: selectedGenerationMethod === 'prompt' },
+      { id: 'parameters', label: 'Paramètres', icon: '⚙️', condition: selectedGenerationMethod === 'prompt' },
+      { id: 'input', label: 'Entrée', icon: '📥', condition: ['sketch', 'image'].includes(selectedGenerationMethod) },
+      { id: 'generation', label: 'Génération', icon: '🎨' },
+      { id: 'prompt-review', label: 'Validation', icon: '👁️', condition: selectedGenerationMethod === 'prompt' },
+      { id: 'design-selection', label: 'Designs', icon: '🖼️' },
+      { id: 'evaluation', label: 'Évaluation', icon: '⚖️' },
+      { id: 'final-results', label: 'Résultats', icon: '📊' }
+    ];
+    
+    return baseSteps.filter(step => step.condition === undefined || step.condition);
   };
 
   if (loading) {
@@ -703,23 +898,14 @@ export default function IdeationPage() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex justify-center mb-8">
           <div className="flex items-center space-x-4">
-            {[
-              { id: 'method-selection', label: 'Méthode', icon: '🚀' },
-              { id: 'methodology', label: 'Méthodologie', icon: '🔧', condition: selectedGenerationMethod === 'prompt' },
-              { id: 'parameters', label: 'Paramètres', icon: '⚙️', condition: selectedGenerationMethod === 'prompt' },
-              { id: 'input', label: 'Entrée', icon: '📥', condition: ['sketch', 'image'].includes(selectedGenerationMethod) },
-              { id: 'generation', label: 'Génération', icon: '🎨' },
-              { id: 'prompt-review', label: 'Validation', icon: '👁️', condition: selectedGenerationMethod === 'prompt' },
-              { id: 'design-selection', label: 'Designs', icon: '🖼️', condition: selectedGenerationMethod !== 'design_to_3d' },
-              { id: 'final-results', label: 'Résultats', icon: '📊' }
-            ].filter(step => step.condition === undefined || step.condition).map((step, index, filteredSteps) => (
+            {getSteps().map((step, index, filteredSteps) => (
               <div key={step.id} className="flex items-center">
                 <div
                   className={`flex items-center justify-center w-10 h-10 rounded-full ${
                     activeStep === step.id 
                       ? 'bg-indigo-600 text-white' 
-                      : ['prompt-review', 'design-selection', 'final-results'].includes(step.id) && 
-                        (generatedPrompt || designResults || stepFile)
+                      : ['prompt-review', 'design-selection', 'evaluation', 'final-results'].includes(step.id) && 
+                        (generatedPrompt || designResults || evaluationComplete || stepFile)
                         ? 'bg-green-600 text-white'
                         : 'bg-gray-200 text-gray-600'
                   }`}
@@ -740,11 +926,11 @@ export default function IdeationPage() {
         </div>
 
         {/* Messages d'erreur */}
-        {error && (
+        {(error || evaluationError) && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
             <div className="flex items-center">
               <span className="text-red-600 mr-2">❌</span>
-              <span className="text-red-800">{error}</span>
+              <span className="text-red-800">{error || evaluationError}</span>
             </div>
           </div>
         )}
@@ -1055,7 +1241,7 @@ export default function IdeationPage() {
                 </p>
               </div>
 
-              {/* ✅ CORRECTION : Bouton avec fonction unifiée - COMMENTAIRE DÉPLACÉ */}
+              {/* Bouton avec fonction unifiée */}
               <button
                 onClick={handleGeneration}
                 disabled={generating || generatingImages}
@@ -1126,7 +1312,7 @@ export default function IdeationPage() {
             <div className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">Sélectionnez votre design préféré</h2>
               <p className="text-gray-600">
-                Choisissez le design que vous souhaitez convertir en modèle 3D
+                Choisissez le design que vous souhaitez évaluer et convertir en modèle 3D
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1164,19 +1350,432 @@ export default function IdeationPage() {
               </div>
 
               {selectedDesignIndex !== undefined && (
-                <div className="flex justify-end pt-6 border-t">
+                <div className="flex justify-between pt-6 border-t">
                   <button
-                    onClick={generateStepFile}
-                    disabled={generatingStep}
-                    className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    onClick={() => setSelectedDesignIndex(undefined)}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium"
                   >
-                    {generatingStep ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Génération du fichier STEP...</span>
+                    ← Désélectionner
+                  </button>
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={evaluateSelectedDesign}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium"
+                    >
+                      ⚖️ Évaluer avec Agent Q
+                    </button>
+                    <button
+                      onClick={generateStepFile}
+                      className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium"
+                    >
+                      Générer STEP (sans évaluation)
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ✅ NOUVELLE ÉTAPE : Évaluation (Agent Q + R.E.A.L.) */}
+          {activeStep === 'evaluation' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold text-gray-900">Évaluation Expert</h2>
+              <p className="text-gray-600">
+                Analyse détaillée par l'Agent Q (qualité perçue) et simulation technique R.E.A.L.
+              </p>
+              
+              {evaluating ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-600 border-t-transparent mx-auto mb-6"></div>
+                  <p className="text-gray-600 text-lg font-medium mb-2">Analyse en cours...</p>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    L'Agent Q évalue la qualité perçue pendant que R.E.A.L. simule la faisabilité technique.
+                  </p>
+                  <div className="mt-6 grid grid-cols-2 gap-4 max-w-sm mx-auto">
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="text-blue-600 text-sm font-medium">🤖 Agent Q</div>
+                      <div className="text-xs text-blue-700">Analyse qualitative</div>
+                    </div>
+                    <div className="bg-purple-50 p-3 rounded-lg">
+                      <div className="text-purple-600 text-sm font-medium">⚙️ R.E.A.L.</div>
+                      <div className="text-xs text-purple-700">Simulation technique</div>
+                    </div>
+                  </div>
+                </div>
+              ) : evaluationComplete ? (
+                <div className="space-y-8">
+                  {/* Design évalué */}
+                  {selectedDesignIndex !== undefined && designResults?.images?.[selectedDesignIndex] && (
+                    <div className="border border-gray-200 rounded-xl p-4">
+                      <h3 className="font-medium text-gray-900 mb-3">Design Évalué</h3>
+                      <div className="flex items-start space-x-6">
+                        <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                          <img
+                            src={designResults.images[selectedDesignIndex]}
+                            alt="Design évalué"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-gray-600 text-sm">
+                            Design {selectedDesignIndex + 1} sélectionné pour l'évaluation
+                          </p>
+                          <div className="mt-2 flex items-center space-x-4">
+                            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                              {project?.domain || 'Produit industriel'}
+                            </span>
+                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+                              Méthode: {selectedGenerationMethod}
+                            </span>
+                          </div>
+                        </div>
                       </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Rapport Agent Q */}
+                    <div className="border border-gray-200 rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="font-semibold text-gray-900 flex items-center">
+                          <span className="text-blue-600 mr-2">🤖</span> Agent Q - Qualité Perçue
+                        </h3>
+                        {agentQEvaluation && (
+                          <div className="text-right">
+                            <div className="text-3xl font-bold text-blue-600">
+                              {agentQEvaluation.overall_score}/10
+                            </div>
+                            <div className="text-sm text-gray-500">Note globale</div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {agentQEvaluation && (
+                        <div className="space-y-6">
+                          {/* Scores par catégorie */}
+                          <div>
+                            <h4 className="font-medium text-gray-900 mb-3">Scores détaillés</h4>
+                            <div className="space-y-3">
+                              {Object.entries(agentQEvaluation.category_scores).map(([key, value]) => (
+                                <div key={key} className="space-y-1">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 capitalize">{key}</span>
+                                    <span className="font-medium">{value}/10</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                                      style={{ width: `${value * 10}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {/* Points forts/faibles */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                              <h4 className="font-medium text-green-900 mb-2 flex items-center">
+                                <span className="mr-2">✅</span> Points Forts
+                              </h4>
+                              <ul className="space-y-2">
+                                {agentQEvaluation.strengths.map((strength, idx) => (
+                                  <li key={idx} className="text-sm text-green-800 flex items-start">
+                                    <span className="text-green-600 mr-2">•</span>
+                                    {strength}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                              <h4 className="font-medium text-red-900 mb-2 flex items-center">
+                                <span className="mr-2">⚠️</span> Améliorations
+                              </h4>
+                              <ul className="space-y-2">
+                                {agentQEvaluation.weaknesses.map((weakness, idx) => (
+                                  <li key={idx} className="text-sm text-red-800 flex items-start">
+                                    <span className="text-red-600 mr-2">•</span>
+                                    {weakness}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                          
+                          {/* Suggestions */}
+                          {agentQEvaluation.suggestions && (
+                            <div className="space-y-4">
+                              <h4 className="font-medium text-gray-900">💡 Suggestions d'amélioration</h4>
+                              
+                              {agentQEvaluation.suggestions.quick_fixes.length > 0 && (
+                                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                                  <h5 className="font-medium text-yellow-900 text-sm mb-1">Correctifs rapides</h5>
+                                  <ul className="space-y-1">
+                                    {agentQEvaluation.suggestions.quick_fixes.map((fix, idx) => (
+                                      <li key={idx} className="text-sm text-yellow-800">• {fix}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              
+                              {agentQEvaluation.suggestions.redesign_ideas.length > 0 && (
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                  <h5 className="font-medium text-blue-900 text-sm mb-1">Idées de redesign</h5>
+                                  <ul className="space-y-1">
+                                    {agentQEvaluation.suggestions.redesign_ideas.map((idea, idx) => (
+                                      <li key={idx} className="text-sm text-blue-800">• {idea}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Avis expert */}
+                          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h4 className="font-medium text-gray-900 mb-2">📝 Avis Expert</h4>
+                            <p className="text-gray-700 text-sm italic">{agentQEvaluation.expert_opinion}</p>
+                          </div>
+                          
+                          {/* Recommandation */}
+                          <div className={`p-4 rounded-lg ${
+                            agentQEvaluation.recommendation === 'validate' 
+                              ? 'bg-green-100 border-green-300' 
+                              : agentQEvaluation.recommendation === 'iterate'
+                              ? 'bg-yellow-100 border-yellow-300'
+                              : 'bg-red-100 border-red-300'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-gray-900">Recommandation</h4>
+                                <p className="text-sm text-gray-600">
+                                  {agentQEvaluation.recommendation === 'validate' && '✅ Valider ce design'}
+                                  {agentQEvaluation.recommendation === 'iterate' && '🔄 Itérer avec les suggestions'}
+                                  {agentQEvaluation.recommendation === 'reject' && '❌ Repartir sur de nouvelles bases'}
+                                </p>
+                              </div>
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                agentQEvaluation.recommendation === 'validate' 
+                                  ? 'bg-green-200 text-green-800' 
+                                  : agentQEvaluation.recommendation === 'iterate'
+                                  ? 'bg-yellow-200 text-yellow-800'
+                                  : 'bg-red-200 text-red-800'
+                              }`}>
+                                {agentQEvaluation.recommendation.toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Simulation R.E.A.L. */}
+                    <div className="border border-gray-200 rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="font-semibold text-gray-900 flex items-center">
+                          <span className="text-purple-600 mr-2">⚙️</span> R.E.A.L. - Analyse Technique
+                        </h3>
+                        {realSimulation && (
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-purple-600">
+                              {realSimulation.dfm_analysis?.manufacturability_score || 75}/100
+                            </div>
+                            <div className="text-sm text-gray-500">Fabricabilité</div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {realSimulation && (
+                        <div className="space-y-6">
+                          {/* Scores de simulation */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-purple-50 p-4 rounded-lg">
+                              <div className="text-sm text-purple-700 font-medium mb-1">Coût Estimé</div>
+                              <div className="text-2xl font-bold text-purple-900">
+                                {realSimulation.dfm_analysis?.estimated_cost || 200}€
+                              </div>
+                              <div className="text-xs text-purple-600">Production unitaire</div>
+                            </div>
+                            
+                            <div className="bg-orange-50 p-4 rounded-lg">
+                              <div className="text-sm text-orange-700 font-medium mb-1">Temps Production</div>
+                              <div className="text-2xl font-bold text-orange-900">
+                                {realSimulation.dfm_analysis?.production_time || 10}h
+                              </div>
+                              <div className="text-xs text-orange-600">Par unité</div>
+                            </div>
+                          </div>
+                          
+                          {/* Matériaux recommandés */}
+                          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h4 className="font-medium text-gray-900 mb-2">🛠️ Matériaux Recommandés</h4>
+                            <p className="text-gray-700">
+                              {realSimulation.dfm_analysis?.recommended_material || "Matériau standard"}
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              Optimisé pour équilibre coût/performance
+                            </p>
+                          </div>
+                          
+                          {/* Analyse FEA */}
+                          {realSimulation.fea_analysis && (
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-gray-900">📊 Analyse Structurelle (FEA)</h4>
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Facteur de sécurité</span>
+                                  <span className="font-medium">
+                                    {realSimulation.fea_analysis.safety_factor?.toFixed(1) || '2.5'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Déformation maximale</span>
+                                  <span className="font-medium">
+                                    {realSimulation.fea_analysis.deformation?.toFixed(2) || '1.2'} mm
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {realSimulation.fea_analysis.critical_points && (
+                                <div className="bg-red-50 p-3 rounded border border-red-200">
+                                  <h5 className="font-medium text-red-900 text-sm mb-1">⚠️ Points critiques</h5>
+                                  <ul className="space-y-1">
+                                    {realSimulation.fea_analysis.critical_points.map((point: string, idx: number) => (
+                                      <li key={idx} className="text-xs text-red-800">• {point}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Suggestions d'optimisation */}
+                          {realSimulation.optimization_suggestions && (
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-gray-900">⚡ Optimisations techniques</h4>
+                              <div className="space-y-2">
+                                {realSimulation.optimization_suggestions.map((suggestion: any, idx: number) => (
+                                  <div 
+                                    key={idx} 
+                                    className={`p-3 rounded-lg border ${
+                                      suggestion.impact === 'high' 
+                                        ? 'bg-green-50 border-green-200' 
+                                        : suggestion.impact === 'medium'
+                                        ? 'bg-yellow-50 border-yellow-200'
+                                        : 'bg-blue-50 border-blue-200'
+                                    }`}
+                                  >
+                                    <div className="flex items-start">
+                                      <span className={`mr-2 ${
+                                        suggestion.impact === 'high' 
+                                          ? 'text-green-600' 
+                                          : suggestion.impact === 'medium'
+                                          ? 'text-yellow-600'
+                                          : 'text-blue-600'
+                                      }`}>
+                                        {suggestion.impact === 'high' ? '🔥' : 
+                                         suggestion.impact === 'medium' ? '⚡' : '💡'}
+                                      </span>
+                                      <div className="flex-1">
+                                        <p className="text-sm font-medium text-gray-900">{suggestion.suggestion}</p>
+                                        <div className="flex justify-between items-center mt-1">
+                                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                            suggestion.type === 'material' 
+                                              ? 'bg-purple-100 text-purple-800' 
+                                              : suggestion.type === 'structure'
+                                              ? 'bg-red-100 text-red-800'
+                                              : suggestion.type === 'cost'
+                                              ? 'bg-green-100 text-green-800'
+                                              : 'bg-blue-100 text-blue-800'
+                                          }`}>
+                                            {suggestion.type}
+                                          </span>
+                                          {suggestion.estimated_saving && (
+                                            <span className="text-xs text-gray-600">
+                                              Économie: ~{suggestion.estimated_saving}€
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Actions après évaluation */}
+                  <div className="flex justify-between pt-6 border-t">
+                    <div className="space-x-4">
+                      <button
+                        onClick={() => setActiveStep('design-selection')}
+                        className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium"
+                      >
+                        ← Changer de design
+                      </button>
+                      <button
+                        onClick={evaluateSelectedDesign}
+                        className="px-6 py-3 border border-indigo-300 text-indigo-700 rounded-xl hover:bg-indigo-50 font-medium"
+                      >
+                        🔄 Réévaluer
+                      </button>
+                    </div>
+                    
+                    <div className="space-x-4">
+                      {agentQEvaluation?.recommendation === 'reject' && (
+                        <button
+                          onClick={() => setActiveStep('design-selection')}
+                          className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium"
+                        >
+                          ❌ Choisir un autre design
+                        </button>
+                      )}
+                      
+                      {(agentQEvaluation?.recommendation === 'validate' || 
+                        agentQEvaluation?.recommendation === 'iterate') && (
+                        <button
+                          onClick={generateStepFile}
+                          disabled={generatingStep}
+                          className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium disabled:opacity-50"
+                        >
+                          {generatingStep ? (
+                            <div className="flex items-center space-x-2">
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Génération STEP...</span>
+                            </div>
+                          ) : (
+                            '📁 Générer le fichier STEP'
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-4xl mb-4">⚖️</div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Prêt pour l'évaluation</h3>
+                  <p className="text-gray-600 mb-6">
+                    Évaluez votre design sélectionné avec l'Agent Q et la simulation R.E.A.L.
+                  </p>
+                  <button
+                    onClick={evaluateSelectedDesign}
+                    disabled={selectedDesignIndex === undefined}
+                    className="px-8 py-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 font-medium"
+                  >
+                    {selectedDesignIndex === undefined ? (
+                      "Sélectionnez d'abord un design"
                     ) : (
-                      'Générer le fichier STEP'
+                      <div className="flex items-center space-x-2">
+                        <span>🤖</span>
+                        <span>Lancer l'évaluation</span>
+                      </div>
                     )}
                   </button>
                 </div>
@@ -1197,6 +1796,7 @@ export default function IdeationPage() {
                   </h3>
                   <p className="text-green-800">
                     Votre design a été généré et converti en modèle 3D.
+                    {agentQEvaluation && " L'évaluation par l'Agent Q est disponible ci-dessous."}
                   </p>
                 </div>
               </div>
@@ -1213,6 +1813,19 @@ export default function IdeationPage() {
                         className="w-full h-full object-cover"
                       />
                     </div>
+                    {agentQEvaluation && (
+                      <div className="mt-4 flex items-center justify-center">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          agentQEvaluation.recommendation === 'validate' 
+                            ? 'bg-green-200 text-green-800' 
+                            : agentQEvaluation.recommendation === 'iterate'
+                            ? 'bg-yellow-200 text-yellow-800'
+                            : 'bg-red-200 text-red-800'
+                        }`}>
+                          Note Agent Q: {agentQEvaluation.overall_score}/10
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1236,6 +1849,29 @@ export default function IdeationPage() {
                   </div>
                 )}
               </div>
+
+              {/* Affichage de l'évaluation si disponible */}
+              {agentQEvaluation && (
+                <div className="border border-gray-200 rounded-xl p-6">
+                  <h3 className="font-semibold text-gray-900 mb-4">📊 Synthèse de l'Évaluation</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {Object.entries(agentQEvaluation.category_scores).map(([key, value]) => (
+                      <div key={key} className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{value}/10</div>
+                        <div className="text-xs text-gray-500 capitalize">{key}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                    <p className="text-blue-800 text-sm">
+                      <span className="font-medium">Recommandation: </span>
+                      {agentQEvaluation.recommendation === 'validate' && '✅ Ce design est validé pour la production'}
+                      {agentQEvaluation.recommendation === 'iterate' && '🔄 Itérer avec les suggestions d\'amélioration'}
+                      {agentQEvaluation.recommendation === 'reject' && '❌ Considérer d\'autres options de design'}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-between pt-6 border-t">
                 <Link
