@@ -18,7 +18,7 @@ const GENERATION_METHODS = {
     inputType: "text" as const
   },
   SKETCH: {
-    id: "sketch", 
+    id: "sketch",
     name: "Sketch → Design",
     description: "Transformation d'esquisse en design réaliste",
     icon: "✏️",
@@ -26,7 +26,7 @@ const GENERATION_METHODS = {
   },
   IMAGE: {
     id: "image",
-    name: "Image → Variations", 
+    name: "Image → Variations",
     description: "Création de variations à partir d'une image existante",
     icon: "🖼️",
     inputType: "image" as const
@@ -40,13 +40,13 @@ const METHODOLOGIES = {
     params: ["contradiction_technique", "niveau_inventivite", "ressources_disponibles"]
   },
   DESIGN_THINKING: {
-    name: "Design Thinking", 
+    name: "Design Thinking",
     description: "Approche centrée utilisateur et itérative",
     params: ["phase_empathie", "personas", "scenarios_usage"]
   },
   DESIGN_FOR_X: {
     name: "Design for X (DfX)",
-    description: "Optimisation pour des critères spécifiques", 
+    description: "Optimisation pour des critères spécifiques",
     params: ["critere_principal", "contraintes_fabrication", "couts_target"]
   },
   VALUE_ENGINEERING: {
@@ -93,7 +93,7 @@ export default function IdeationPage() {
   const [activeStep, setActiveStep] = useState("method-selection");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
+
   // États pour les uploads et prompts utilisateur
   const [uploadedSketch, setUploadedSketch] = useState<string>("");
   const [uploadedImage, setUploadedImage] = useState<string>("");
@@ -117,13 +117,13 @@ export default function IdeationPage() {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error loading project state:', error);
+        console.error('Error loading project state:', error.message, error.details);
         return null;
       }
 
       return data;
-    } catch (error) {
-      console.error('Error loading project state:', error);
+    } catch (error: any) {
+      console.error('Error loading project state:', error.message);
       return null;
     }
   };
@@ -142,10 +142,10 @@ export default function IdeationPage() {
         });
 
       if (error) {
-        console.error('Error saving project state:', error);
+        console.error('Error saving project state:', error.message, error.details);
       }
-    } catch (error) {
-      console.error('Error saving project state:', error);
+    } catch (error: any) {
+      console.error('Error saving project state:', error.message);
     }
   };
 
@@ -169,13 +169,23 @@ export default function IdeationPage() {
         if (projectError) throw projectError;
         if (!projectData) throw new Error('Projet non trouvé');
 
+        // WORKAROUND: Extraire le domaine de la description si la colonne domain est manquante
+        if (!projectData.domain && projectData.description?.startsWith('[DOMAINE:')) {
+          const match = projectData.description.match(/^\[DOMAINE: (.*?)\]/);
+          if (match) {
+            projectData.domain = match[1];
+            // On nettoie la description pour l'affichage/utilisation
+            projectData.description = projectData.description.replace(/^\[DOMAINE: .*?\] /, '');
+          }
+        }
+
         setProject(projectData);
 
         // Charger l'état sauvegardé
         const savedState = await loadProjectState();
         if (savedState) {
           console.log('📁 État précédent chargé:', savedState);
-          
+
           // État existant
           if (savedState.selected_generation_method) {
             setSelectedGenerationMethod(savedState.selected_generation_method);
@@ -210,7 +220,7 @@ export default function IdeationPage() {
           if (savedState.user_prompt) {
             setUserPrompt(savedState.user_prompt);
           }
-          
+
           // ✅ NOUVEAU: Charger les évaluations
           if (savedState.agent_q_evaluation) {
             setAgentQEvaluation(savedState.agent_q_evaluation);
@@ -223,7 +233,7 @@ export default function IdeationPage() {
           }
         }
 
-        // Déterminer l'étape active basée sur la progression
+        // Déterminer l'étape active basée sur le state local plutôt que le progrès DB
         determineActiveStep(projectData, savedState);
 
       } catch (error: any) {
@@ -238,24 +248,25 @@ export default function IdeationPage() {
 
   // Fonction pour déterminer l'étape active
   const determineActiveStep = (projectData: any, savedState: any) => {
+    // Si une étape est explicitement sauvegardée, on l'utilise
     if (savedState?.active_step) {
+      setActiveStep(savedState.active_step);
       return;
     }
 
-    if (projectData.progress >= 100) {
+    // Sinon on déduit l'étape d'après les données disponibles
+    if (savedState?.step_file) {
       setActiveStep('final-results');
-    } else if (projectData.progress >= 85) {
+    } else if (savedState?.evaluation_complete || savedState?.agent_q_evaluation) {
       setActiveStep('evaluation');
-    } else if (projectData.progress >= 75) {
+    } else if (savedState?.design_results?.images?.length > 0) {
       setActiveStep('design-selection');
-    } else if (projectData.progress >= 50) {
+    } else if (savedState?.generated_prompt) {
       setActiveStep('prompt-review');
-    } else if (projectData.progress >= 25) {
+    } else if (savedState?.selected_generation_method === 'prompt' && !savedState?.generated_prompt) {
       setActiveStep('generation');
-    } else if (projectData.progress > 0) {
-      setActiveStep('parameters');
     } else if (savedState?.selected_generation_method) {
-      setActiveStep('methodology');
+      setActiveStep('input');
     } else {
       setActiveStep('method-selection');
     }
@@ -277,15 +288,15 @@ export default function IdeationPage() {
       uploaded_sketch: uploadedSketch,
       uploaded_image: uploadedImage,
       user_prompt: userPrompt,
-      agent_q_evaluation: agentQEvaluation,
-      real_simulation: realSimulation,
+      agent_q_evaluation: agentQEvaluation || undefined,
+      real_simulation: realSimulation || undefined,
       evaluation_complete: evaluationComplete
     };
 
     saveProjectState(state);
   }, [
-    selectedGenerationMethod, selectedMethodology, methodologyParams, generatedPrompt, 
-    designResults, stepFile, selectedDesignIndex, activeStep, uploadedSketch, 
+    selectedGenerationMethod, selectedMethodology, methodologyParams, generatedPrompt,
+    designResults, stepFile, selectedDesignIndex, activeStep, uploadedSketch,
     uploadedImage, userPrompt, projectId, agentQEvaluation, realSimulation, evaluationComplete
   ]);
 
@@ -293,27 +304,27 @@ export default function IdeationPage() {
   const handleFileUpload = async (file: File, type: 'sketch' | 'image') => {
     setUploadingFile(true);
     setError("");
-    
+
     try {
       const reader = new FileReader();
-      
+
       return new Promise<string>((resolve, reject) => {
         reader.onload = async (e) => {
           try {
             const base64 = e.target?.result as string;
-            
+
             if (type === 'sketch') {
               setUploadedSketch(base64);
             } else {
               setUploadedImage(base64);
             }
-            
+
             resolve(base64);
           } catch (error) {
             reject(error);
           }
         };
-        
+
         reader.onerror = () => reject(new Error("Erreur lors de la lecture du fichier"));
         reader.readAsDataURL(file);
       });
@@ -332,13 +343,13 @@ export default function IdeationPage() {
 
     setGenerating(true);
     setError("");
-    
+
     try {
       console.log("🚀 Début génération prompt Mistral...");
 
       const promptResponse = await fetch('/api/ideation/generate-prompt', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -371,18 +382,16 @@ export default function IdeationPage() {
       if (!responseData?.success) {
         throw new Error(responseData?.error || 'Erreur lors de la génération du prompt');
       }
-      
+
       if (responseData.prompt) {
         console.log("✅ Prompt Mistral généré avec succès");
         setGeneratedPrompt(responseData.prompt);
         setActiveStep('prompt-review');
-        
+
         await supabase
           .from('projects')
           .update({
-            progress: 50,
-            status: 'in_progress',
-            methodology: selectedMethodology,
+            method: selectedMethodology,
             updated_at: new Date().toISOString()
           })
           .eq('id', projectId);
@@ -401,7 +410,7 @@ export default function IdeationPage() {
   const generateDesigns = async () => {
     setGeneratingImages(true);
     setError("");
-    
+
     try {
       console.log("🎨 Génération designs avec votre API...", {
         method: selectedGenerationMethod
@@ -429,7 +438,7 @@ export default function IdeationPage() {
           payload.generationMethod = 'controlnet';
           payload.sketch = uploadedSketch;
           // Combiner description utilisateur avec prompt de base
-          const sketchPrompt = userPrompt 
+          const sketchPrompt = userPrompt
             ? `${userPrompt}, professional industrial design, high quality, detailed product, realistic materials`
             : "professional industrial design, high quality, detailed product, realistic materials, technical drawing";
           payload.prompt = sketchPrompt;
@@ -442,7 +451,7 @@ export default function IdeationPage() {
           payload.generationMethod = 'img2img';
           payload.image = uploadedImage;
           // Combiner description utilisateur avec prompt de base
-          const imagePrompt = userPrompt 
+          const imagePrompt = userPrompt
             ? `${userPrompt}, professional product design variations, high quality, different styles`
             : "professional product design variations, high quality, different styles and colors";
           payload.prompt = imagePrompt;
@@ -460,7 +469,7 @@ export default function IdeationPage() {
 
       const designResponse = await fetch('/api/ideation/generate-design', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -484,22 +493,20 @@ export default function IdeationPage() {
       if (!responseData?.success) {
         throw new Error(responseData?.error || 'Erreur lors de la génération');
       }
-      
+
       if (responseData.images && responseData.images.length > 0) {
         console.log("✅ Designs générés avec succès:", {
           imagesCount: responseData.images.length,
           source: responseData.source,
           model: responseData.model
         });
-        
+
         setDesignResults(responseData);
         setActiveStep('design-selection');
-        
+
         await supabase
           .from('projects')
           .update({
-            progress: 75,
-            status: 'in_progress',
             updated_at: new Date().toISOString()
           })
           .eq('id', projectId);
@@ -520,19 +527,19 @@ export default function IdeationPage() {
       setEvaluationError("Veuillez sélectionner un design à évaluer");
       return;
     }
-    
+
     setEvaluating(true);
     setEvaluationError("");
     setActiveStep('evaluation');
-    
+
     try {
       const selectedImageUrl = designResults.images[selectedDesignIndex];
-      
+
       // 1. Évaluation Agent Q (qualité perçue)
       console.log('🤖 Lancement Agent Q...');
       const agentQResponse = await fetch('/api/evaluation/agent-q', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -544,7 +551,7 @@ export default function IdeationPage() {
           projectType: project?.domain || "produit industriel"
         })
       });
-      
+
       let agentQData;
       try {
         agentQData = await agentQResponse.json();
@@ -552,7 +559,7 @@ export default function IdeationPage() {
         console.error('❌ Erreur parsing Agent Q:', parseError);
         throw new Error(`Erreur de communication avec Agent Q (${agentQResponse.status})`);
       }
-      
+
       if (!agentQResponse.ok) {
         console.warn('⚠️ Agent Q échoué:', agentQData?.error);
         // Utiliser une évaluation de fallback
@@ -568,14 +575,14 @@ export default function IdeationPage() {
           }
         };
       }
-      
+
       setAgentQEvaluation(agentQData.evaluation);
-      
+
       // 2. Simulation R.E.A.L. (qualité physique)
       console.log('⚙️ Lancement R.E.A.L....');
       const realResponse = await fetch('/api/evaluation/real', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -587,7 +594,7 @@ export default function IdeationPage() {
           methodology: selectedMethodology || "TRIZ"
         })
       });
-      
+
       let realData;
       try {
         realData = await realResponse.json();
@@ -595,7 +602,7 @@ export default function IdeationPage() {
         console.error('❌ Erreur parsing R.E.A.L.:', parseError);
         throw new Error(`Erreur de communication avec R.E.A.L. (${realResponse.status})`);
       }
-      
+
       if (!realResponse.ok) {
         console.warn('⚠️ R.E.A.L. échoué:', realData?.error);
         // Utiliser une simulation de fallback
@@ -628,19 +635,18 @@ export default function IdeationPage() {
           }
         };
       }
-      
+
       setRealSimulation(realData.simulation);
       setEvaluationComplete(true);
-      
+
       // Mettre à jour la progression du projet
       await supabase
         .from('projects')
         .update({
-          progress: 85,
           updated_at: new Date().toISOString()
         })
         .eq('id', projectId);
-        
+
     } catch (error) {
       console.error('❌ Erreur évaluation:', error);
       setEvaluationError(`Erreur lors de l'évaluation: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
@@ -655,14 +661,14 @@ export default function IdeationPage() {
 
     setGeneratingStep(true);
     setError("");
-    
+
     try {
       const selectedImageUrl = designResults.images[selectedDesignIndex];
       console.log("📁 Génération du fichier STEP avec votre API...");
 
       const stepResponse = await fetch('/api/ideation/generate-step', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -692,12 +698,10 @@ export default function IdeationPage() {
         console.log("✅ Fichier STEP généré avec succès");
         setStepFile(responseData.step_file);
         setActiveStep('final-results');
-        
+
         await supabase
           .from('projects')
           .update({
-            progress: 100,
-            status: 'completed',
             updated_at: new Date().toISOString()
           })
           .eq('id', projectId);
@@ -740,9 +744,7 @@ export default function IdeationPage() {
       await supabase
         .from('projects')
         .update({
-          progress: 0,
-          status: 'draft',
-          methodology: null,
+          method: null,
           updated_at: new Date().toISOString()
         })
         .eq('id', projectId);
@@ -804,7 +806,7 @@ export default function IdeationPage() {
       { id: 'evaluation', label: 'Évaluation', icon: '⚖️' },
       { id: 'final-results', label: 'Résultats', icon: '📊' }
     ];
-    
+
     return baseSteps.filter(step => step.condition === undefined || step.condition);
   };
 
@@ -881,7 +883,7 @@ export default function IdeationPage() {
               <div className="text-right">
                 <div className="text-sm text-gray-500">Progression</div>
                 <div className="w-32 bg-gray-200 rounded-full h-2 mt-1">
-                  <div 
+                  <div
                     className="bg-green-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${project?.progress || 0}%` }}
                   ></div>
@@ -901,20 +903,18 @@ export default function IdeationPage() {
             {getSteps().map((step, index, filteredSteps) => (
               <div key={step.id} className="flex items-center">
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                    activeStep === step.id 
-                      ? 'bg-indigo-600 text-white' 
-                      : ['prompt-review', 'design-selection', 'evaluation', 'final-results'].includes(step.id) && 
-                        (generatedPrompt || designResults || evaluationComplete || stepFile)
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-200 text-gray-600'
-                  }`}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full ${activeStep === step.id
+                    ? 'bg-indigo-600 text-white'
+                    : ['prompt-review', 'design-selection', 'evaluation', 'final-results'].includes(step.id) &&
+                      (generatedPrompt || designResults || evaluationComplete || stepFile)
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-200 text-gray-600'
+                    }`}
                 >
                   {step.icon}
                 </div>
-                <span className={`ml-2 text-sm font-medium ${
-                  activeStep === step.id ? 'text-indigo-600' : 'text-gray-500'
-                }`}>
+                <span className={`ml-2 text-sm font-medium ${activeStep === step.id ? 'text-indigo-600' : 'text-gray-500'
+                  }`}>
                   {step.label}
                 </span>
                 {index < filteredSteps.length - 1 && (
@@ -937,7 +937,7 @@ export default function IdeationPage() {
 
         {/* Contenu selon l'étape active */}
         <div className="bg-white rounded-2xl shadow-sm border p-6">
-          
+
           {/* Étape Sélection de la Méthode */}
           {activeStep === 'method-selection' && (
             <div className="space-y-6">
@@ -945,16 +945,15 @@ export default function IdeationPage() {
               <p className="text-gray-600">
                 Sélectionnez comment vous souhaitez générer votre design avec Mistral AI et SDXL
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {Object.values(GENERATION_METHODS).map((method) => (
                   <div
                     key={method.id}
-                    className={`border-2 rounded-xl p-6 cursor-pointer transition-all hover:shadow-md ${
-                      selectedGenerationMethod === method.id
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    className={`border-2 rounded-xl p-6 cursor-pointer transition-all hover:shadow-md ${selectedGenerationMethod === method.id
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                      }`}
                     onClick={() => {
                       setSelectedGenerationMethod(method.id);
                       // Navigation selon la méthode
@@ -972,17 +971,16 @@ export default function IdeationPage() {
                         <p className="text-gray-600 mt-2">{method.description}</p>
                         <div className="mt-3">
                           <span className="text-xs font-medium text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
-                            {method.id === 'prompt' ? 'Mistral + SDXL' : 
-                             method.id === 'sketch' ? 'SDXL + Sketch' :
-                             method.id === 'image' ? 'SDXL Variations' : 'Mistral STEP'}
+                            {method.id === 'prompt' ? 'Mistral + SDXL' :
+                              method.id === 'sketch' ? 'SDXL + Sketch' :
+                                method.id === 'image' ? 'SDXL Variations' : 'Mistral STEP'}
                           </span>
                         </div>
                       </div>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                        selectedGenerationMethod === method.id 
-                          ? 'bg-indigo-500 border-indigo-500 text-white' 
-                          : 'border-gray-300'
-                      }`}>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${selectedGenerationMethod === method.id
+                        ? 'bg-indigo-500 border-indigo-500 text-white'
+                        : 'border-gray-300'
+                        }`}>
                         {selectedGenerationMethod === method.id && '✓'}
                       </div>
                     </div>
@@ -999,26 +997,24 @@ export default function IdeationPage() {
               <p className="text-gray-600">
                 Sélectionnez l'approche méthodologique qui correspond le mieux à votre projet
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.entries(METHODOLOGIES).map(([key, method]) => (
                   <div
                     key={key}
-                    className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                      selectedMethodology === key
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${selectedMethodology === key
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                      }`}
                     onClick={() => setSelectedMethodology(key)}
                   >
                     <h3 className="font-semibold text-gray-900">{method.name}</h3>
                     <p className="text-sm text-gray-600 mt-1">{method.description}</p>
                     <div className="flex items-center mt-3">
-                      <div className={`w-4 h-4 rounded-full border-2 ${
-                        selectedMethodology === key 
-                          ? 'bg-indigo-500 border-indigo-500' 
-                          : 'border-gray-300'
-                      }`}></div>
+                      <div className={`w-4 h-4 rounded-full border-2 ${selectedMethodology === key
+                        ? 'bg-indigo-500 border-indigo-500'
+                        : 'border-gray-300'
+                        }`}></div>
                       <span className="ml-2 text-sm text-gray-500">
                         {selectedMethodology === key ? 'Sélectionnée' : 'Sélectionner'}
                       </span>
@@ -1089,7 +1085,7 @@ export default function IdeationPage() {
                 {selectedGenerationMethod === 'sketch' && 'Entrée : Sketch + Prompt optionnel'}
                 {selectedGenerationMethod === 'image' && 'Entrée : Image + Prompt optionnel'}
               </h2>
-              
+
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
                 <div className="text-center">
                   <div className="text-blue-600 text-3xl mb-4">
@@ -1138,7 +1134,7 @@ export default function IdeationPage() {
                     }
                   }}
                 />
-                
+
                 {(!uploadedSketch && !uploadedImage) ? (
                   <div className="space-y-4">
                     <div className="text-gray-400 text-4xl">
@@ -1172,8 +1168,8 @@ export default function IdeationPage() {
                     <div>
                       <p className="text-gray-600 mb-2">Fichier uploadé avec succès !</p>
                       <div className="max-w-xs mx-auto">
-                        <img 
-                          src={selectedGenerationMethod === 'sketch' ? uploadedSketch : uploadedImage} 
+                        <img
+                          src={selectedGenerationMethod === 'sketch' ? uploadedSketch : uploadedImage}
                           alt="Preview"
                           className="w-full h-32 object-contain border rounded-lg"
                         />
@@ -1222,7 +1218,7 @@ export default function IdeationPage() {
                 {selectedGenerationMethod === 'sketch' && 'Transformation Sketch → Design'}
                 {selectedGenerationMethod === 'image' && 'Génération de Variations'}
               </h2>
-              
+
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 max-w-md mx-auto">
                 <div className="text-blue-600 text-2xl mb-2">
                   {selectedGenerationMethod === 'prompt' && '🤖'}
@@ -1319,11 +1315,10 @@ export default function IdeationPage() {
                 {designResults.images.map((image: string, index: number) => (
                   <div
                     key={index}
-                    className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                      selectedDesignIndex === index
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${selectedDesignIndex === index
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                      }`}
                     onClick={() => handleSelectDesign(index)}
                   >
                     <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4">
@@ -1337,11 +1332,10 @@ export default function IdeationPage() {
                       <span className="font-medium text-gray-900">
                         Design {index + 1}
                       </span>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                        selectedDesignIndex === index
-                          ? 'bg-indigo-500 border-indigo-500 text-white'
-                          : 'border-gray-300'
-                      }`}>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${selectedDesignIndex === index
+                        ? 'bg-indigo-500 border-indigo-500 text-white'
+                        : 'border-gray-300'
+                        }`}>
                         {selectedDesignIndex === index && '✓'}
                       </div>
                     </div>
@@ -1383,7 +1377,7 @@ export default function IdeationPage() {
               <p className="text-gray-600">
                 Analyse détaillée par l'Agent Q (qualité perçue) et simulation technique R.E.A.L.
               </p>
-              
+
               {evaluating ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-600 border-t-transparent mx-auto mb-6"></div>
@@ -1449,7 +1443,7 @@ export default function IdeationPage() {
                           </div>
                         )}
                       </div>
-                      
+
                       {agentQEvaluation && (
                         <div className="space-y-6">
                           {/* Scores par catégorie */}
@@ -1463,7 +1457,7 @@ export default function IdeationPage() {
                                     <span className="font-medium">{value}/10</span>
                                   </div>
                                   <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div 
+                                    <div
                                       className="bg-blue-600 h-2 rounded-full transition-all duration-500"
                                       style={{ width: `${value * 10}%` }}
                                     ></div>
@@ -1472,7 +1466,7 @@ export default function IdeationPage() {
                               ))}
                             </div>
                           </div>
-                          
+
                           {/* Points forts/faibles */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-green-50 p-4 rounded-lg border border-green-200">
@@ -1488,7 +1482,7 @@ export default function IdeationPage() {
                                 ))}
                               </ul>
                             </div>
-                            
+
                             <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                               <h4 className="font-medium text-red-900 mb-2 flex items-center">
                                 <span className="mr-2">⚠️</span> Améliorations
@@ -1503,12 +1497,12 @@ export default function IdeationPage() {
                               </ul>
                             </div>
                           </div>
-                          
+
                           {/* Suggestions */}
                           {agentQEvaluation.suggestions && (
                             <div className="space-y-4">
                               <h4 className="font-medium text-gray-900">💡 Suggestions d'amélioration</h4>
-                              
+
                               {agentQEvaluation.suggestions.quick_fixes.length > 0 && (
                                 <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                                   <h5 className="font-medium text-yellow-900 text-sm mb-1">Correctifs rapides</h5>
@@ -1519,7 +1513,7 @@ export default function IdeationPage() {
                                   </ul>
                                 </div>
                               )}
-                              
+
                               {agentQEvaluation.suggestions.redesign_ideas.length > 0 && (
                                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                                   <h5 className="font-medium text-blue-900 text-sm mb-1">Idées de redesign</h5>
@@ -1532,21 +1526,20 @@ export default function IdeationPage() {
                               )}
                             </div>
                           )}
-                          
+
                           {/* Avis expert */}
                           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                             <h4 className="font-medium text-gray-900 mb-2">📝 Avis Expert</h4>
                             <p className="text-gray-700 text-sm italic">{agentQEvaluation.expert_opinion}</p>
                           </div>
-                          
+
                           {/* Recommandation */}
-                          <div className={`p-4 rounded-lg ${
-                            agentQEvaluation.recommendation === 'validate' 
-                              ? 'bg-green-100 border-green-300' 
-                              : agentQEvaluation.recommendation === 'iterate'
+                          <div className={`p-4 rounded-lg ${agentQEvaluation.recommendation === 'validate'
+                            ? 'bg-green-100 border-green-300'
+                            : agentQEvaluation.recommendation === 'iterate'
                               ? 'bg-yellow-100 border-yellow-300'
                               : 'bg-red-100 border-red-300'
-                          }`}>
+                            }`}>
                             <div className="flex items-center justify-between">
                               <div>
                                 <h4 className="font-medium text-gray-900">Recommandation</h4>
@@ -1556,13 +1549,12 @@ export default function IdeationPage() {
                                   {agentQEvaluation.recommendation === 'reject' && '❌ Repartir sur de nouvelles bases'}
                                 </p>
                               </div>
-                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                agentQEvaluation.recommendation === 'validate' 
-                                  ? 'bg-green-200 text-green-800' 
-                                  : agentQEvaluation.recommendation === 'iterate'
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${agentQEvaluation.recommendation === 'validate'
+                                ? 'bg-green-200 text-green-800'
+                                : agentQEvaluation.recommendation === 'iterate'
                                   ? 'bg-yellow-200 text-yellow-800'
                                   : 'bg-red-200 text-red-800'
-                              }`}>
+                                }`}>
                                 {agentQEvaluation.recommendation.toUpperCase()}
                               </span>
                             </div>
@@ -1570,7 +1562,7 @@ export default function IdeationPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Simulation R.E.A.L. */}
                     <div className="border border-gray-200 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-6">
@@ -1586,7 +1578,7 @@ export default function IdeationPage() {
                           </div>
                         )}
                       </div>
-                      
+
                       {realSimulation && (
                         <div className="space-y-6">
                           {/* Scores de simulation */}
@@ -1598,7 +1590,7 @@ export default function IdeationPage() {
                               </div>
                               <div className="text-xs text-purple-600">Production unitaire</div>
                             </div>
-                            
+
                             <div className="bg-orange-50 p-4 rounded-lg">
                               <div className="text-sm text-orange-700 font-medium mb-1">Temps Production</div>
                               <div className="text-2xl font-bold text-orange-900">
@@ -1607,7 +1599,7 @@ export default function IdeationPage() {
                               <div className="text-xs text-orange-600">Par unité</div>
                             </div>
                           </div>
-                          
+
                           {/* Matériaux recommandés */}
                           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                             <h4 className="font-medium text-gray-900 mb-2">🛠️ Matériaux Recommandés</h4>
@@ -1618,7 +1610,7 @@ export default function IdeationPage() {
                               Optimisé pour équilibre coût/performance
                             </p>
                           </div>
-                          
+
                           {/* Analyse FEA */}
                           {realSimulation.fea_analysis && (
                             <div className="space-y-3">
@@ -1637,7 +1629,7 @@ export default function IdeationPage() {
                                   </span>
                                 </div>
                               </div>
-                              
+
                               {realSimulation.fea_analysis.critical_points && (
                                 <div className="bg-red-50 p-3 rounded border border-red-200">
                                   <h5 className="font-medium text-red-900 text-sm mb-1">⚠️ Points critiques</h5>
@@ -1650,46 +1642,43 @@ export default function IdeationPage() {
                               )}
                             </div>
                           )}
-                          
+
                           {/* Suggestions d'optimisation */}
                           {realSimulation.optimization_suggestions && (
                             <div className="space-y-3">
                               <h4 className="font-medium text-gray-900">⚡ Optimisations techniques</h4>
                               <div className="space-y-2">
                                 {realSimulation.optimization_suggestions.map((suggestion: any, idx: number) => (
-                                  <div 
-                                    key={idx} 
-                                    className={`p-3 rounded-lg border ${
-                                      suggestion.impact === 'high' 
-                                        ? 'bg-green-50 border-green-200' 
-                                        : suggestion.impact === 'medium'
+                                  <div
+                                    key={idx}
+                                    className={`p-3 rounded-lg border ${suggestion.impact === 'high'
+                                      ? 'bg-green-50 border-green-200'
+                                      : suggestion.impact === 'medium'
                                         ? 'bg-yellow-50 border-yellow-200'
                                         : 'bg-blue-50 border-blue-200'
-                                    }`}
+                                      }`}
                                   >
                                     <div className="flex items-start">
-                                      <span className={`mr-2 ${
-                                        suggestion.impact === 'high' 
-                                          ? 'text-green-600' 
-                                          : suggestion.impact === 'medium'
+                                      <span className={`mr-2 ${suggestion.impact === 'high'
+                                        ? 'text-green-600'
+                                        : suggestion.impact === 'medium'
                                           ? 'text-yellow-600'
                                           : 'text-blue-600'
-                                      }`}>
-                                        {suggestion.impact === 'high' ? '🔥' : 
-                                         suggestion.impact === 'medium' ? '⚡' : '💡'}
+                                        }`}>
+                                        {suggestion.impact === 'high' ? '🔥' :
+                                          suggestion.impact === 'medium' ? '⚡' : '💡'}
                                       </span>
                                       <div className="flex-1">
                                         <p className="text-sm font-medium text-gray-900">{suggestion.suggestion}</p>
                                         <div className="flex justify-between items-center mt-1">
-                                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                            suggestion.type === 'material' 
-                                              ? 'bg-purple-100 text-purple-800' 
-                                              : suggestion.type === 'structure'
+                                          <span className={`text-xs px-2 py-0.5 rounded-full ${suggestion.type === 'material'
+                                            ? 'bg-purple-100 text-purple-800'
+                                            : suggestion.type === 'structure'
                                               ? 'bg-red-100 text-red-800'
                                               : suggestion.type === 'cost'
-                                              ? 'bg-green-100 text-green-800'
-                                              : 'bg-blue-100 text-blue-800'
-                                          }`}>
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-blue-100 text-blue-800'
+                                            }`}>
                                             {suggestion.type}
                                           </span>
                                           {suggestion.estimated_saving && (
@@ -1709,7 +1698,7 @@ export default function IdeationPage() {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Actions après évaluation */}
                   <div className="flex justify-between pt-6 border-t">
                     <div className="space-x-4">
@@ -1726,7 +1715,7 @@ export default function IdeationPage() {
                         🔄 Réévaluer
                       </button>
                     </div>
-                    
+
                     <div className="space-x-4">
                       {agentQEvaluation?.recommendation === 'reject' && (
                         <button
@@ -1736,24 +1725,24 @@ export default function IdeationPage() {
                           ❌ Choisir un autre design
                         </button>
                       )}
-                      
-                      {(agentQEvaluation?.recommendation === 'validate' || 
+
+                      {(agentQEvaluation?.recommendation === 'validate' ||
                         agentQEvaluation?.recommendation === 'iterate') && (
-                        <button
-                          onClick={generateStepFile}
-                          disabled={generatingStep}
-                          className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium disabled:opacity-50"
-                        >
-                          {generatingStep ? (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              <span>Génération STEP...</span>
-                            </div>
-                          ) : (
-                            '📁 Générer le fichier STEP'
-                          )}
-                        </button>
-                      )}
+                          <button
+                            onClick={generateStepFile}
+                            disabled={generatingStep}
+                            className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium disabled:opacity-50"
+                          >
+                            {generatingStep ? (
+                              <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <span>Génération STEP...</span>
+                              </div>
+                            ) : (
+                              '📁 Générer le fichier STEP'
+                            )}
+                          </button>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -1787,7 +1776,7 @@ export default function IdeationPage() {
           {activeStep === 'final-results' && (
             <div className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">Résultats Finaux</h2>
-              
+
               <div className="bg-green-50 border border-green-200 rounded-xl p-6">
                 <div className="text-center">
                   <div className="text-green-600 text-4xl mb-4">🎉</div>
@@ -1815,13 +1804,12 @@ export default function IdeationPage() {
                     </div>
                     {agentQEvaluation && (
                       <div className="mt-4 flex items-center justify-center">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          agentQEvaluation.recommendation === 'validate' 
-                            ? 'bg-green-200 text-green-800' 
-                            : agentQEvaluation.recommendation === 'iterate'
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${agentQEvaluation.recommendation === 'validate'
+                          ? 'bg-green-200 text-green-800'
+                          : agentQEvaluation.recommendation === 'iterate'
                             ? 'bg-yellow-200 text-yellow-800'
                             : 'bg-red-200 text-red-800'
-                        }`}>
+                          }`}>
                           Note Agent Q: {agentQEvaluation.overall_score}/10
                         </span>
                       </div>

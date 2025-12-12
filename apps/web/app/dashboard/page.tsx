@@ -59,7 +59,7 @@ export default function Dashboard() {
 
       // Recharger la liste des projets
       await loadUserAndProjects();
-      
+
       alert('Projet supprimé avec succès');
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
@@ -76,7 +76,7 @@ export default function Dashboard() {
     try {
       const { error } = await supabase
         .from('projects')
-        .update({ 
+        .update({
           status: 'archived',
           updated_at: new Date().toISOString()
         })
@@ -86,7 +86,7 @@ export default function Dashboard() {
 
       // Recharger la liste des projets
       await loadUserAndProjects();
-      
+
       alert('Projet archivé avec succès');
     } catch (error) {
       console.error('Erreur lors de l\'archivage:', error);
@@ -102,7 +102,7 @@ export default function Dashboard() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
-      
+
       if (!user) {
         router.push('/login');
         return;
@@ -126,17 +126,59 @@ export default function Dashboard() {
         }
       }
 
-      const { data, error } = await query.order('updated_at', { ascending: false });
+      // Fetch projects first
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (!error && data) {
-        // ✅ CORRECTION: Filtrer les projets non archivés pour l'affichage
-        const activeProjects = data.filter((p: Project) => p.status !== 'archived');
-        setProjects(activeProjects);
+        // Fetch project states to determine progress and status
+        const projectIds = data.map(p => p.id);
+        const { data: statesData } = await supabase
+          .from('project_states')
+          .select('*')
+          .in('project_id', projectIds);
+
+        const statesMap = new Map(statesData?.map(s => [s.project_id, s]));
+
+        const enrichedProjects = data.map((p: any) => {
+          const state = statesMap.get(p.id);
+
+          let status: ProjectStatus = 'in_progress';
+          let progress = 0;
+
+          if (state) {
+            if (state.evaluation_complete) {
+              status = 'completed';
+              progress = 100;
+            } else if (state.step_file) {
+              status = 'validation';
+              progress = 90;
+            } else if (state.design_results) {
+              status = 'validation'; // Or advanced in progress
+              progress = 75;
+            } else if (state.generated_prompt) {
+              progress = 50;
+            } else if (state.selected_methodology) {
+              progress = 25;
+            }
+          }
+
+          // Workaround for domain storage in description
+          // If description contains "Domaine:", parse it? (Optional, kept as is for now)
+
+          return {
+            ...p,
+            status,
+            progress,
+            methodology: state?.selected_methodology || p.method || 'Non défini'
+          };
+        }).filter(p => p.status !== 'archived');
+
+        setProjects(enrichedProjects);
         setStats({
-          total: activeProjects.length,
-          inProgress: activeProjects.filter(p => p.status === 'in_progress').length,
-          inValidation: activeProjects.filter(p => p.status === 'validation').length,
-          completed: activeProjects.filter(p => p.status === 'completed').length
+          total: enrichedProjects.length,
+          inProgress: enrichedProjects.filter(p => p.status === 'in_progress').length,
+          inValidation: enrichedProjects.filter(p => p.status === 'validation').length,
+          completed: enrichedProjects.filter(p => p.status === 'completed').length
         });
       }
     } catch (error) {
@@ -164,11 +206,11 @@ export default function Dashboard() {
       DT: { label: 'Design Thinking', description: 'Centré utilisateur', color: 'bg-blue-100 text-blue-800' },
       VE: { label: 'Value Engineering', description: 'Optimisation valeur', color: 'bg-green-100 text-green-800' }
     };
-    
+
     if (!methodology) {
       return { label: 'Non défini', description: '', color: 'bg-gray-100 text-gray-800' };
     }
-    
+
     return methodMap[methodology as keyof typeof methodMap] || { label: methodology, description: '', color: 'bg-gray-100 text-gray-800' };
   };
 
@@ -237,7 +279,7 @@ export default function Dashboard() {
                 </h1>
               </div>
               <p className="text-xl text-gray-600 max-w-3xl">
-                Bienvenue{user ? `, ${user.email}` : ''} dans votre espace de conception professionnelle. 
+                Bienvenue{user ? `, ${user.email}` : ''} dans votre espace de conception professionnelle.
                 Gérez vos projets, collaborez avec votre équipe et suivez l'avancement de vos conceptions.
               </p>
             </div>
@@ -249,7 +291,7 @@ export default function Dashboard() {
                 <span className="text-xl">+</span>
                 <span className="font-semibold">Nouveau Projet</span>
               </Link>
-              
+
               {/* ✅ AJOUT: Boutons de déconnexion et menu utilisateur */}
               <div className="flex items-center space-x-3">
                 <button
@@ -348,11 +390,10 @@ export default function Dashboard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                    activeTab === tab.id
+                  className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
                       ? 'border-indigo-500 text-indigo-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   {tab.label} ({tab.count})
                 </button>
@@ -369,8 +410,8 @@ export default function Dashboard() {
                 {activeTab === 'collaborations' ? '👥' : '🚀'}
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {activeTab === 'collaborations' 
-                  ? 'Aucune collaboration' 
+                {activeTab === 'collaborations'
+                  ? 'Aucune collaboration'
                   : 'Aucun projet'}
               </h3>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
@@ -392,14 +433,14 @@ export default function Dashboard() {
               {projects.map((project) => {
                 const statusInfo = getStatusInfo(project.status);
                 const methodInfo = getMethodologyInfo(project.methodology);
-                
+
                 return (
                   <div key={project.id} className="p-6 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-3">
                           <h3 className="text-xl font-semibold text-gray-900">
-                            <Link 
+                            <Link
                               href={getContinueButtonLink(project)}
                               className="hover:text-indigo-600"
                             >
@@ -414,7 +455,7 @@ export default function Dashboard() {
                             {methodInfo.label}
                           </span>
                         </div>
-                        
+
                         <p className="text-gray-600 mb-4">{project.description}</p>
 
                         {/* Métadonnées et progression */}
@@ -436,7 +477,7 @@ export default function Dashboard() {
                         {/* Barre de progression */}
                         <div className="mt-3">
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
+                            <div
                               className="bg-indigo-600 h-2 rounded-full transition-all"
                               style={{ width: `${project.progress || 0}%` }}
                             ></div>

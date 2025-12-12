@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     console.log('⚙️ R.E.A.L. - Début simulation', { projectId, projectType });
 
     const aiService = AIService.getInstance();
-    
+
     // Simulation R.E.A.L.
     const simulation = await aiService.simulateREALAnalysis(
       designUrl,
@@ -21,15 +21,18 @@ export async function POST(request: NextRequest) {
     // Sauvegarder dans Supabase (optionnel)
     if (process.env.SUPABASE_URL) {
       const { supabase } = await import('~/lib/supabase');
-      await supabase
+      const { error: simulationError } = await supabase
         .from('project_evaluations')
         .insert({
           project_id: projectId,
           type: 'real_simulation',
           simulation_data: simulation,
           created_at: new Date().toISOString()
-        })
-        .catch(err => console.error('Erreur sauvegarde simulation:', err));
+        });
+
+      if (simulationError) {
+        console.error('Erreur sauvegarde simulation:', simulationError);
+      }
     }
 
     return NextResponse.json({
@@ -41,8 +44,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ Erreur R.E.A.L.:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: error.message || 'Erreur lors de la simulation',
         fallback_simulation: {
           dfm_analysis: {

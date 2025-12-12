@@ -57,19 +57,19 @@ export default function NewProject() {
     const checkAuth = async () => {
       try {
         const { data: { user }, error } = await supabase.auth.getUser();
-        
+
         if (error) {
           console.error('Erreur auth:', error);
           setShouldRedirect(true);
           return;
         }
-        
+
         if (!user) {
           console.log('Aucun utilisateur trouvé, redirection vers login');
           setShouldRedirect(true);
           return;
         }
-        
+
         console.log('Utilisateur authentifié:', user.email);
         setUser(user);
       } catch (error) {
@@ -113,15 +113,11 @@ export default function NewProject() {
     setError('');
 
     try {
-      // Vérifier à nouveau l'authentification avant la soumission
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        throw new Error(`Erreur d'authentification: ${authError.message}`);
-      }
-      
-      if (!user) {
-        throw new Error('Non authentifié. Veuillez vous reconnecter.');
+      // 1. Obtenir l'utilisateur courant
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error('Utilisateur non connecté');
       }
 
       console.log('Création du projet par:', user.email);
@@ -130,61 +126,102 @@ export default function NewProject() {
         throw new Error('Le nom et la description sont requis');
       }
 
-      // Créer le projet
+      // 2. Créer le projet directement (Tentative 1)
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .insert([{
+          user_id: user.id, // Important : utilisez user.id
           name: formData.name.trim(),
-          description: formData.description.trim(),
-          domain: formData.domain,
-          owner_id: user.id,
-          status: 'draft',
-          progress: 0
+          // WORKAROUND: La colonne 'domain' manque dans la DB, on l'ajoute à la description
+          description: `[DOMAINE: ${formData.domain}] ${formData.description.trim()}`
         }])
         .select()
         .single();
 
       if (projectError) {
-        console.error('Erreur Supabase détaillée:', projectError);
-        throw new Error(`Erreur lors de la création: ${projectError.message}`);
-      }
-      
-      if (!project) {
-        throw new Error('Le projet n\'a pas pu être créé');
-      }
+        console.error('Erreur détaillée:', projectError);
 
-      console.log('Projet créé avec ID:', project.id);
+        // Vérifiez si c'est une erreur de clé étrangère (profil manquant)
+        if (projectError.message.includes('foreign key constraint') || projectError.code === '23503') {
+          console.log('⚠️ Profil manquant détecté, création automatique...');
 
-      // Ajouter les collaborateurs
-      if (formData.collaborators.length > 0) {
-        const { error: collaboratorError } = await supabase
-          .from('project_members')
-          .insert(
-            formData.collaborators.map(email => ({
-              project_id: project.id,
-              user_email: email,
-              role: 'editor',
-              status: 'pending',
-              invited_by: user.id
-            }))
-          );
+          // Créer le profil manuellement
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: user.id,
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+              role: 'designer'
+            });
 
-        if (collaboratorError) {
-          console.warn('Avertissement collaborateurs:', collaboratorError);
-          // Ne pas bloquer la création si les collaborateurs échouent
+          if (profileError) {
+            throw new Error(`Erreur création profil: ${profileError.message}`);
+          }
+
+          console.log('✅ Profil créé, nouvelle tentative de création projet...');
+
+          // Réessayer la création du projet (Tentative 2)
+          const { data: retryProject, error: retryError } = await supabase
+            .from('projects')
+            .insert([{
+              user_id: user.id,
+              name: formData.name.trim(),
+              // WORKAROUND: Préserver le workaround lors du retry
+              description: `[DOMAINE: ${formData.domain}] ${formData.description.trim()}`
+            }])
+            .select()
+            .single();
+
+          if (retryError) {
+            throw new Error(`Erreur après création profil: ${retryError.message}`);
+          }
+
+          // Succès après retry
+          if (retryProject) {
+            handleSuccess(retryProject);
+          }
+        } else {
+          throw new Error(`Erreur création projet: ${projectError.message}`);
         }
+      } else if (project) {
+        // Succès immédiat
+        handleSuccess(project);
       }
-
-      // Rediriger vers l'idéation
-      console.log('Redirection vers:', `/dashboard/projects/${project.id}/ideation`);
-      router.push(`/dashboard/projects/${project.id}/ideation`);
 
     } catch (error: any) {
-      console.error('Erreur complète lors de la création:', error);
-      setError(error.message);
+      console.error('Erreur complète:', error);
+      setError(error.message || 'Une erreur inconnue est survenue');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper pour gérer le succès et les collaborateurs
+  const handleSuccess = async (project: any) => {
+    console.log('Projet créé avec ID:', project.id);
+
+    // Ajouter les collaborateurs
+    if (formData.collaborators.length > 0) {
+      const { error: collaboratorError } = await supabase
+        .from('project_members')
+        .insert(
+          formData.collaborators.map((email: string) => ({
+            project_id: project.id,
+            user_email: email,
+            role: 'editor',
+            status: 'pending',
+            invited_by: project.user_id
+          }))
+        );
+
+      if (collaboratorError) {
+        console.warn('Avertissement collaborateurs:', collaboratorError);
+      }
+    }
+
+    // Rediriger vers l'idéation
+    console.log('Redirection vers:', `/dashboard/projects/${project.id}/ideation`);
+    router.push(`/dashboard/projects/${project.id}/ideation`);
   };
 
   // Afficher un loader pendant la vérification d'authentification
@@ -244,7 +281,7 @@ export default function NewProject() {
                 ✅ Connecté en tant que: {user?.email}
               </div>
             </div>
-            
+
             {/* ✅ AJOUT: Boutons de déconnexion et menu utilisateur */}
             <div className="flex items-center space-x-3">
               <button
@@ -384,7 +421,7 @@ export default function NewProject() {
                   Ajouter
                 </button>
               </div>
-              
+
               {formData.collaborators.length > 0 && (
                 <div className="space-y-2">
                   {formData.collaborators.map((email, index) => (
@@ -415,7 +452,7 @@ export default function NewProject() {
                 <div className="ml-3">
                   <h4 className="text-sm font-medium text-green-800">Prochaines Étapes</h4>
                   <p className="text-sm text-green-700 mt-1">
-                    Après la création, vous serez redirigé vers l'interface d'idéation 
+                    Après la création, vous serez redirigé vers l'interface d'idéation
                     où vous pourrez choisir votre méthodologie et lancer la génération IA.
                   </p>
                 </div>

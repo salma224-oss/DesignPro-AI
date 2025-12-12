@@ -13,6 +13,13 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_A
 }
 
 // Client principal pour le frontend
+const urlToUse = supabaseUrl;
+console.log('🔌 Initialisation Supabase Client:', {
+  url: urlToUse ? (urlToUse.substring(0, 15) + '...') : 'undefined',
+  hasKey: !!supabaseAnonKey,
+  isDummy: urlToUse.includes('dummy')
+});
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Client admin

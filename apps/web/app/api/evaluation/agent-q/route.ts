@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const aiService = AIService.getInstance();
-    
+
     // Analyse avec l'Agent Q
     const evaluation = await aiService.evaluateDesignWithAgentQ(
       designUrl,
@@ -28,15 +28,18 @@ export async function POST(request: NextRequest) {
     // Sauvegarder dans Supabase (optionnel)
     if (process.env.SUPABASE_URL) {
       const { supabase } = await import('~/lib/supabase');
-      await supabase
+      const { error: evaluationError } = await supabase
         .from('project_evaluations')
         .insert({
           project_id: projectId,
           type: 'agent_q',
           evaluation_data: evaluation,
           created_at: new Date().toISOString()
-        })
-        .catch(err => console.error('Erreur sauvegarde évaluation:', err));
+        });
+
+      if (evaluationError) {
+        console.error('Erreur sauvegarde évaluation:', evaluationError);
+      }
     }
 
     return NextResponse.json({
@@ -48,8 +51,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ Erreur Agent Q:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: error.message || 'Erreur lors de l\'évaluation',
         fallback_evaluation: {
           overall_score: 7.5,
