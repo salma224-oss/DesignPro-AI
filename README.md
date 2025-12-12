@@ -110,7 +110,3 @@ Accédez à l'application sur [http://localhost:3000](http://localhost:3000).
 Les contributions sont les bienvenues ! Veuillez ouvrir une issue pour discuter des changements majeurs avant de soumettre une Pull Request.
 
 ---
-
-## 📄 Licence
-
-Ce projet est sous licence MIT.
