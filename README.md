@@ -2,7 +2,7 @@
 
 DesignPro AI est une application SaaS innovante qui révolutionne le processus de design industriel grâce à l'intelligence artificielle générative. Elle accompagne les créateurs de l'idéation à la validation technique, en passant par la visualisation haute fidélité.
 
-![DesignPro AI Banner](https://via.placeholder.com/1200x400?text=DesignPro+AI+Interface)
+![DesignPro AI Banner](DESIGN.png)
 
 ## ✨ Fonctionnalités Clés
 
