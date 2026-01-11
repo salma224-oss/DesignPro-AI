@@ -1,0 +1,430 @@
+\section*{Annexes}
+\addcontentsline{toc}{section}{Annexes}
+
+\renewcommand{\thesubsection}{\Alph{subsection}}
+
+\subsection{Glossaire}
+
+\begin{description}[leftmargin=3cm, style=nextline]
+    \item[Agent Q] Module d'évaluation critique de designs utilisant GPT-4 Vision et Mistral AI
+    
+    \item[API] Application Programming Interface - Interface de programmation d'application
+    
+    \item[ControlNet] Module de guidage spatial pour Stable Diffusion
+    
+    \item[DFA] Design for Assembly - Conception pour l'assemblage
+    
+    \item[DFM] Design for Manufacturing - Conception pour la fabrication
+    
+    \item[DFS] Design for Serviceability - Conception pour la maintenabilité
+    
+    \item[DFSust] Design for Sustainability - Conception pour la durabilité
+    
+    \item[DfX] Design for X - Ensemble de méthodologies de conception orientées objectif
+    
+    \item[FEA] Finite Element Analysis - Analyse par éléments finis
+    
+    \item[GPT-4 Vision] Modèle multimodal d'OpenAI capable d'analyser des images
+    
+    \item[Hugging Face] Plateforme de partage de modèles d'IA open-source
+    
+    \item[LDM] Latent Diffusion Model - Modèle de diffusion latente
+    
+    \item[LLM] Large Language Model - Grand modèle de langage
+    
+    \item[Mistral AI] Entreprise française développant des LLM open-source
+    
+    \item[Next.js] Framework React pour applications web modernes
+    
+    \item[Prompt] Instruction textuelle donnée à un modèle d'IA générative
+    
+    \item[R.E.A.L.] Realistic Engineering Analysis Logic - Module de simulation technique
+    
+    \item[RDM] Résistance des Matériaux - Discipline de mécanique des structures
+    
+    \item[RLS] Row Level Security - Sécurité au niveau des lignes (Supabase)
+    
+    \item[SDXL] Stable Diffusion XL - Version haute résolution de Stable Diffusion
+    
+    \item[Stable Diffusion] Modèle de diffusion open-source pour génération d'images
+    
+    \item[Supabase] Plateforme Backend-as-a-Service open-source
+    
+    \item[TRIZ] Theory of Inventive Problem Solving - Théorie de résolution inventive de problèmes
+    
+    \item[UNet] Architecture de réseau de neurones utilisée dans les modèles de diffusion
+    
+    \item[VAE] Variational Autoencoder - Auto-encodeur variationnel
+\end{description}
+
+\subsection{Exemples de Prompts Générés}
+
+\subsubsection{Exemple 1 : Chaise Ergonomique (DFX)}
+
+\textbf{Entrée} :
+\begin{itemize}
+    \item Catégorie : Meuble
+    \item Focus : Ergonomie
+    \item Style : Minimaliste
+    \item Méthodologie : DFX
+\end{itemize}
+
+\textbf{Prompt généré} :
+\begin{quote}
+\textit{"A minimalist ergonomic office chair with flowing organic curves, featuring a breathable mesh backrest in charcoal gray, polished aluminum base with smooth-rolling casters, adjustable lumbar support visible through transparent side panels, designed for easy assembly with modular components, professional product photography, studio lighting, three-quarter view, high detail, 8k"}
+\end{quote}
+
+\subsubsection{Exemple 2 : Souris Gaming (Design Thinking)}
+
+\textbf{Entrée} :
+\begin{itemize}
+    \item Catégorie : Électronique
+    \item Focus : Ergonomie + Performance
+    \item Style : Futuriste
+    \item Méthodologie : Design Thinking
+\end{itemize}
+
+\textbf{Prompt généré} :
+\begin{quote}
+\textit{"A futuristic gaming mouse with asymmetric ergonomic design, featuring RGB lighting strips along the edges, textured grip zones in matte black rubber, programmable buttons seamlessly integrated into the shell, honeycomb ventilation pattern for weight reduction, designed with user empathy and rapid prototyping principles, professional product photography, dramatic lighting, close-up detail shot, 8k"}
+\end{quote}
+
+\subsubsection{Exemple 3 : Composant Automobile (TRIZ)}
+
+\textbf{Entrée} :
+\begin{itemize}
+    \item Catégorie : Automobile
+    \item Focus : Résistance structurelle
+    \item Style : Industriel
+    \item Méthodologie : TRIZ
+\end{itemize}
+
+\textbf{Prompt généré} :
+\begin{quote}
+\textit{"An innovative automotive suspension component with biomimetic lattice structure, featuring lightweight aluminum alloy construction with strategic reinforcement ribs, applying TRIZ principles of segmentation and local quality, designed to resolve the contradiction between strength and weight, industrial CAD rendering, technical blueprint style, isometric view, high precision details, 8k"}
+\end{quote}
+
+\subsection{Rapports d'Évaluation Agent Q Complets}
+
+\subsubsection{Rapport 1 : Chaise Ergonomique}
+
+\begin{lstlisting}[language=JSON, caption=Évaluation complète Agent Q]
+{
+  "overall_score": 7.9,
+  "category_scores": {
+    "aesthetic": 8.5,
+    "functional": 7.5,
+    "innovative": 7.0,
+    "manufacturable": 8.0,
+    "ergonomic": 8.5
+  },
+  "strengths": [
+    "Design épuré et moderne très attractif visuellement",
+    "Ergonomie bien pensée avec support lombaire intégré",
+    "Matériaux de qualité apparente (aluminium + mesh)",
+    "Proportions harmonieuses et équilibrées"
+  ],
+  "weaknesses": [
+    "Jonction dossier-assise pourrait être renforcée",
+    "Innovation limitée par rapport aux chaises existantes",
+    "Complexité d'assemblage potentielle",
+    "Coût de production estimé élevé"
+  ],
+  "suggestions": {
+    "quick_fixes": [
+      "Renforcer la jonction dossier-assise avec une plaque métallique",
+      "Simplifier le mécanisme d'ajustement lombaire",
+      "Standardiser les fixations pour faciliter l'assemblage"
+    ],
+    "redesign_ideas": [
+      "Explorer une structure monocoque pour plus de rigidité",
+      "Intégrer des capteurs de posture (innovation IoT)",
+      "Ajouter des éléments modulaires personnalisables"
+    ],
+    "material_suggestions": [
+      "Envisager fibre de carbone pour réduire le poids de 30%",
+      "Utiliser mesh recyclé pour aspect durabilité",
+      "Considérer aluminium 6063 pour réduire coûts de 15%"
+    ]
+  },
+  "expert_opinion": "Design solide avec un bon équilibre esthétique/fonctionnel. La forme épurée et l'ergonomie sont des points forts majeurs. L'attention portée au support lombaire démontre une compréhension des besoins utilisateurs. Cependant, la jonction dossier-assise nécessite un renforcement structurel pour garantir la durabilité. L'innovation est modérée mais l'exécution est professionnelle. Avec quelques ajustements techniques, ce design a un fort potentiel commercial dans le segment premium.",
+  "recommendation": "validate",
+  "confidence": 0.85
+}
+\end{lstlisting}
+
+\subsection{Rapports R.E.A.L. Complets}
+
+\subsubsection{Rapport 1 : Chaise Ergonomique}
+
+\begin{lstlisting}[language=JSON, caption=Simulation R.E.A.L. complète]
+{
+  "fea_analysis": {
+    "stress_points": [
+      {
+        "location": "Jonction dossier-assise",
+        "value": 45.2,
+        "unit": "MPa",
+        "status": "warning",
+        "recommendation": "Renforcer avec nervures ou augmenter épaisseur"
+      },
+      {
+        "location": "Base du pied central",
+        "value": 62.8,
+        "unit": "MPa",
+        "status": "acceptable",
+        "recommendation": "Surveiller en tests de fatigue"
+      },
+      {
+        "location": "Fixation accoudoir gauche",
+        "value": 38.5,
+        "unit": "MPa",
+        "status": "ok",
+        "recommendation": "Aucune action requise"
+      }
+    ],
+    "safety_factor": 3.2,
+    "safety_factor_status": "good",
+    "deformation": 1.8,
+    "deformation_unit": "mm",
+    "deformation_status": "acceptable",
+    "critical_points": [
+      "Jonction dossier-assise nécessite renforcement",
+      "Base du pied sous contrainte élevée mais acceptable"
+    ],
+    "load_scenario": "Charge statique 100 kg centrée sur l'assise",
+    "material_assumed": "Alliage aluminium 6061-T6"
+  },
+  "dfm_analysis": {
+    "manufacturability_score": 75,
+    "manufacturability_status": "good",
+    "estimated_cost": 180,
+    "cost_currency": "EUR",
+    "cost_breakdown": {
+      "materials": 65,
+      "machining": 45,
+      "assembly": 35,
+      "finishing": 20,
+      "overhead": 15
+    },
+    "recommended_material": "Alliage aluminium 6061-T6",
+    "alternative_materials": [
+      "Aluminium 6063 (coût -15%, résistance -10%)",
+      "Fibre de carbone (coût +120%, poids -40%)"
+    ],
+    "production_time": 12,
+    "production_time_unit": "hours",
+    "production_time_breakdown": {
+      "machining": 6,
+      "assembly": 3,
+      "finishing": 2,
+      "quality_control": 1
+    },
+    "complexity_score": 25,
+    "complexity_factors": [
+      "Géométrie courbe nécessite usinage 5 axes",
+      "Assemblage de 12 pièces distinctes",
+      "Finitions multiples (brossé, anodisé)"
+    ]
+  },
+  "optimization_suggestions": [
+    {
+      "type": "structure",
+      "suggestion": "Ajouter nervures de renforcement à la jonction dossier-assise pour réduire contrainte de 45.2 MPa à ~30 MPa",
+      "impact": "high",
+      "estimated_cost_change": 8,
+      "estimated_time_change": 1.5,
+      "estimated_weight_change": 0.3
+    },
+    {
+      "type": "material",
+      "suggestion": "Facteur de sécurité élevé (3.2). Envisager aluminium 6063 pour réduire coûts de 15% sans compromettre la sécurité",
+      "impact": "medium",
+      "estimated_cost_change": -27,
+      "estimated_time_change": 0,
+      "estimated_weight_change": 0
+    },
+    {
+      "type": "manufacturing",
+      "suggestion": "Simplifier géométrie des accoudoirs pour réduire temps d'usinage de 20%",
+      "impact": "medium",
+      "estimated_cost_change": -9,
+      "estimated_time_change": -2.4,
+      "estimated_weight_change": -0.1
+    },
+    {
+      "type": "assembly",
+      "suggestion": "Réduire nombre de pièces de 12 à 8 via conception modulaire",
+      "impact": "high",
+      "estimated_cost_change": -15,
+      "estimated_time_change": -1.5,
+      "estimated_weight_change": 0
+    }
+  ],
+  "overall_assessment": "Design techniquement viable avec quelques optimisations recommandées. Le facteur de sécurité de 3.2 indique une structure robuste mais potentiellement surdimensionnée. Les suggestions d'optimisation pourraient réduire les coûts de 25% tout en maintenant la performance.",
+  "next_steps": [
+    "Renforcer jonction dossier-assise",
+    "Effectuer FEA détaillée sur modèle 3D complet",
+    "Prototyper et tester en conditions réelles",
+    "Optimiser pour réduction de coûts"
+  ]
+}
+\end{lstlisting}
+
+\subsection{Configuration Technique}
+
+\subsubsection{Variables d'Environnement}
+
+\begin{lstlisting}[language=bash, caption=Fichier .env.local]
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# AI Services
+MISTRAL_API_KEY=xxx_your_mistral_api_key_xxx
+HF_API_TOKEN=hf_xxx_your_huggingface_token_xxx
+OPENAI_API_KEY=sk-xxx_your_openai_api_key_xxx
+REPLICATE_API_TOKEN=r8_xxx_your_replicate_token_xxx
+
+# Application
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NODE_ENV=development
+\end{lstlisting}
+
+\subsubsection{Commandes de Déploiement}
+
+\begin{lstlisting}[language=bash, caption=Scripts de déploiement]
+# Installation des dépendances
+npm install
+
+# Développement local
+npm run dev
+
+# Build production
+npm run build
+
+# Démarrage production
+npm start
+
+# Tests
+npm test
+
+# Linting
+npm run lint
+
+# Formatage
+npm run format
+
+# Déploiement Vercel
+vercel --prod
+\end{lstlisting}
+
+\subsection{Guide Utilisateur}
+
+\subsubsection{Démarrage Rapide}
+
+\textbf{Étape 1 : Inscription}
+\begin{enumerate}
+    \item Accéder à l'application
+    \item Cliquer sur "S'inscrire"
+    \item Entrer email et mot de passe
+    \item Vérifier l'email de confirmation
+\end{enumerate}
+
+\textbf{Étape 2 : Créer un Projet}
+\begin{enumerate}
+    \item Cliquer sur "Nouveau Projet"
+    \item Entrer le nom du projet
+    \item Sélectionner le domaine (Meuble, Électronique, etc.)
+    \item Cliquer sur "Créer"
+\end{enumerate}
+
+\textbf{Étape 3 : Générer un Design}
+\begin{enumerate}
+    \item \textbf{Phase 1} : Sélectionner catégorie, focus, style, méthodologie
+    \item Cliquer sur "Générer le Prompt"
+    \item Réviser et ajuster le prompt si nécessaire
+    \item \textbf{Phase 2} : Sélectionner le modèle de génération
+    \item Ajuster les paramètres (résolution, qualité, etc.)
+    \item Cliquer sur "Générer les Designs"
+    \item Attendre 30-60 secondes
+    \item \textbf{Phase 3} : Sélectionner un design à évaluer
+    \item Cliquer sur "Évaluer avec Agent Q"
+    \item Consulter les scores et recommandations
+    \item \textbf{Phase 4} : Cliquer sur "Générer Rapport R.E.A.L."
+    \item Consulter l'analyse FEA/DFM
+    \item Télécharger le rapport complet
+\end{enumerate}
+
+\textbf{Étape 4 : Itérer}
+\begin{enumerate}
+    \item Donner un score au design (1-10)
+    \item Si score < 7, consulter les suggestions
+    \item Modifier le prompt ou les paramètres
+    \item Régénérer
+\end{enumerate}
+
+\subsubsection{Conseils d'Utilisation}
+
+\textbf{Pour de meilleurs prompts} :
+\begin{itemize}
+    \item Être spécifique sur les matériaux et textures
+    \item Inclure des détails sur l'éclairage et l'angle de vue
+    \item Utiliser des termes techniques précis
+    \item Éviter les descriptions trop longues (50-80 mots optimal)
+\end{itemize}
+
+\textbf{Pour de meilleures images} :
+\begin{itemize}
+    \item SDXL pour qualité maximale (mais plus lent)
+    \item SDXL Turbo pour itération rapide
+    \item SD 1.5 pour bon compromis qualité/vitesse
+    \item Augmenter \texttt{num\_inference\_steps} pour plus de détails
+\end{itemize}
+
+\textbf{Pour de meilleures évaluations} :
+\begin{itemize}
+    \item Activer GPT-4 Vision pour analyse visuelle réelle
+    \item Fournir un contexte détaillé (brief original, contraintes)
+    \item Comparer plusieurs designs avant de valider
+\end{itemize}
+
+\subsection{Ressources Complémentaires}
+
+\subsubsection{Documentation}
+
+\begin{itemize}
+    \item \textbf{Code source} : \url{https://github.com/votre-repo/designpro-ai}
+    \item \textbf{Documentation API} : \url{https://docs.designpro-ai.com}
+    \item \textbf{Tutoriels vidéo} : \url{https://youtube.com/@designpro-ai}
+    \item \textbf{Forum communautaire} : \url{https://community.designpro-ai.com}
+\end{itemize}
+
+\subsubsection{Références Techniques}
+
+\begin{itemize}
+    \item Stable Diffusion : \url{https://github.com/Stability-AI/stablediffusion}
+    \item ControlNet : \url{https://github.com/lllyasviel/ControlNet}
+    \item Mistral AI : \url{https://docs.mistral.ai}
+    \item GPT-4 Vision : \url{https://platform.openai.com/docs/guides/vision}
+    \item Next.js : \url{https://nextjs.org/docs}
+    \item Supabase : \url{https://supabase.com/docs}
+\end{itemize}
+
+\subsection{Remerciements}
+
+Ce projet n'aurait pas été possible sans :
+
+\begin{itemize}
+    \item Les équipes de Stability AI, Mistral AI, OpenAI et Hugging Face pour leurs modèles open-source
+    \item La communauté open-source pour Next.js, Supabase et les nombreuses bibliothèques utilisées
+    \item Les 15 designers industriels qui ont participé à l'étude utilisateur
+    \item Les professeurs et mentors qui ont guidé ce travail
+\end{itemize}
+
+\vspace{1cm}
+
+\begin{center}
+\textit{Merci à tous ceux qui contribuent à démocratiser l'IA et à rendre le design industriel plus accessible et innovant.}
+\end{center}

@@ -1,3 +1,5 @@
+
+// apps/web/components/ideation/PromptDisplay.tsx
 "use client";
 
 export function PromptDisplay({ prompt }: { prompt: string }) {

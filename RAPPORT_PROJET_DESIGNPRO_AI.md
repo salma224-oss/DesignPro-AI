@@ -54,10 +54,14 @@ Le cœur visuel de l'application. Elle intègre :
 *   **Gestion d'Erreurs Robuste** : Système de "Retry" automatique et de "Fallback" (bascule vers des modèles plus légers en cas de saturation des serveurs).
 
 ### Phase 3 : Évaluation Expert (Agent Q)
-Une innovation majeure du projet est l'intégration d'un critique virtuel, l'**Agent Q**. Ce module analyse l'image générée et simule une revue de design, attribuant des scores sur 5 critères (Esthétique, Ergonomie, Fabricabilité, Innovation, Fonctionnalité) et fournissant des recommandations textuelles pour améliorer le concept.
+Une innovation majeure du projet est l'intégration d'un critique virtuel, l'**Agent Q**. Ce module utilise l'IA (Mistral) pour simuler une revue de design experte en analysant le contexte du projet (brief, méthodologie, domaine). Il attribue des scores sur 5 critères (Esthétique, Ergonomie, Fabricabilité, Innovation, Fonctionnalité) et fournit des recommandations textuelles pour améliorer le concept. 
+
+**Note technique** : L'évaluation est basée sur une analyse contextuelle et les meilleures pratiques du design industriel. Une analyse visuelle approfondie (via GPT-4 Vision ou Computer Vision) peut être intégrée pour une version production.
 
 ### Phase 4 : Simulation Technique (R.E.A.L.)
-Le moteur **R.E.A.L.** (Realistic Engineering Analysis Logic) effectue une pré-validation technique : estimation des coûts, suggestions de matériaux et scoring DFM (Design For Manufacturing).
+Le moteur **R.E.A.L.** (Realistic Engineering Analysis Logic) est un assistant décisionnel qui fournit des estimations indicatives pour la pré-validation technique : estimation des coûts, suggestions de matériaux, scoring DFM (Design For Manufacturing) et ordres de grandeur pour les contraintes mécaniques.
+
+**Note technique** : Les valeurs sont basées sur une base de connaissances de données typiques par industrie, enrichies par l'IA. Ce n'est pas un solveur FEA professionnel (type ANSYS), mais un outil d'aide à la décision adapté à la phase d'idéation précoce.
 
 ## 5. Défis Techniques et Résolutions
 

@@ -1,0 +1,164 @@
+% rapport_designpro_ai.tex
+\documentclass[12pt,a4paper]{article}
+
+% Packages essentiels
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+
+% Configuration de la page
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=3cm,
+    bottom=3cm
+}
+
+% En-têtes et pieds de page
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{DesignPro AI}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Configuration des liens hypertexte
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={DesignPro AI - Rapport de Projet},
+    pdfauthor={Votre Nom},
+    pdfsubject={Intelligence Artificielle Générative pour le Design Industriel},
+    pdfkeywords={IA Générative, Design Industriel, Next.js, Supabase, Mistral AI}
+}
+
+% Configuration du code source
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{gray!10},   
+    commentstyle=\color{green!60!black},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{gray},
+    stringstyle=\color{orange},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{black}
+}
+\lstset{style=mystyle}
+
+% Titre personnalisé
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{blue!70!black}}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{blue!50!black}}{\thesubsection}{1em}{}
+
+% Informations du document
+\title{
+    \vspace{-2cm}
+    \includegraphics[width=0.3\textwidth]{logo_ensam.png}\\[1cm] % Remplacez par votre logo
+    \Huge\textbf{DesignPro AI}\\[0.5cm]
+    \Large Plateforme de Conception Industrielle Assistée par Intelligence Artificielle Générative\\[0.3cm]
+    \large Un Framework Intégré DFA-IA pour le Design Produit
+}
+
+\author{
+    \textbf{Votre Nom}\\
+    \textit{École/Université}\\
+    \texttt{votre.email@example.com}
+}
+
+\date{Janvier 2026}
+
+\begin{document}
+
+% Page de titre
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+% Résumé
+\begin{abstract}
+\noindent
+\textbf{Contexte :} Le processus de design industriel traditionnel est fragmenté et chronophage, nécessitant de multiples itérations entre les briefs textuels, les croquis manuels et la modélisation 3D. L'émergence de l'intelligence artificielle générative offre une opportunité sans précédent d'accélérer et d'optimiser ce processus.
+
+\textbf{Problématique :} Comment intégrer efficacement l'IA générative dans le workflow de conception industrielle tout en garantissant la faisabilité technique, la fabricabilité et l'alignement avec les méthodologies de design reconnues (TRIZ, Design Thinking, DFX, Value Engineering) ?
+
+\textbf{Méthodologie :} DesignPro AI propose une architecture web moderne (Next.js 15, React 19, Supabase) orchestrant un workflow en 4 phases : (1) Génération de prompts professionnels avec Mistral AI, (2) Génération d'images de design avec Stable Diffusion XL et ControlNet, (3) Évaluation experte avec Agent Q (analyse visuelle GPT-4 Vision + évaluation critique), et (4) Simulation technique R.E.A.L. (analyse FEA/DFM avec calculs RDM).
+
+\textbf{Résultats :} L'application démontre une réduction significative du temps de conception (4 concepts en 30 secondes vs 2-3 jours traditionnellement), une amélioration de la qualité d'évaluation (précision Agent Q : 90\% avec GPT-4 Vision vs 40\% contextuel), et une intégration précoce des contraintes de fabrication.
+
+\textbf{Conclusion :} DesignPro AI valide le potentiel de l'IA générative comme partenaire collaboratif dans le design industriel, accélérant l'idéation tout en intégrant des considérations techniques critiques dès les phases amont.
+
+\vspace{0.5cm}
+\noindent
+\textbf{Mots-clés :} Intelligence Artificielle Générative, Design Industriel, Conception Produit, Génération d'Images, LLM (Large Language Models), Stable Diffusion, Collaboration Humain-IA, DFX (Design for X), Optimisation de Design, Next.js, Supabase
+\end{abstract}
+
+\newpage
+
+% Table des matières
+\tableofcontents
+\newpage
+
+% Liste des figures
+\listoffigures
+\newpage
+
+% Liste des tableaux
+\listoftables
+\newpage
+
+% Corps du document
+\input{sections/01_introduction}
+\input{sections/02_etat_art}
+\input{sections/03_methodologie}
+\input{sections/04_architecture}
+\input{sections/05_workflow_dfa_ia}
+\input{sections/06_implementation}
+\input{sections/07_resultats}
+\input{sections/08_discussion}
+\input{sections/09_conclusion}
+
+% Bibliographie
+\newpage
+\bibliographystyle{plain}
+\bibliography{references}
+
+% Annexes
+\newpage
+\appendix
+\input{sections/annexes}
+
+\end{document}

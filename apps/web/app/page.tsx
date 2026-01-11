@@ -1,3 +1,5 @@
+
+
 // app/page.tsx - VERSION CORRIGÉE
 "use client";
 import { useEffect, useState } from "react";

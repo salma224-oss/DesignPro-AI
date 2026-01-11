@@ -1,3 +1,6 @@
+
+
+// apps/web/app/api/ideation/generate-prompt/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { AIService } from '~/lib/ai';
 

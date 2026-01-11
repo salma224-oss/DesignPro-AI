@@ -1,0 +1,88 @@
+\section{Introduction}
+
+\subsection{Contexte Industriel}
+
+Dans le paysage industriel contemporain, les entreprises font face à une pression constante pour réduire le temps entre la conception d'un produit et sa mise en production, tout en maintenant des niveaux élevés d'innovation, de durabilité et de fabricabilité. La phase de conception précoce, où les décisions critiques concernant la forme, la fonction et la faisabilité sont prises, est particulièrement sujette à des itérations lentes, des prototypages coûteux et des jugements subjectifs.
+
+Les méthodes traditionnelles telles que le prototypage itératif, la conception centrée utilisateur et le design thinking, bien qu'éprouvées et largement adoptées, peuvent être limitées par des contraintes temporelles et restreindre l'exploration créative en raison de biais cognitifs ou d'un manque d'exposition à des retours d'information pertinents \cite{bartlett2024generative}.
+
+\subsection{Problématique}
+
+Dans ce contexte, de nombreuses organisations peinent à explorer rapidement un large éventail de possibilités de design tout en garantissant l'alignement avec les contraintes industrielles telles que :
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Fabricabilité (DFM - Design for Manufacturing)} : Simplicité de production, coûts de fabrication
+    \item \textbf{Assemblage (DFA - Design for Assembly)} : Efficacité d'assemblage, réduction du nombre de pièces
+    \item \textbf{Maintenabilité (DFS - Design for Serviceability)} : Facilité de réparation et d'entretien
+    \item \textbf{Durabilité (DFSust - Design for Sustainability)} : Impact environnemental, recyclabilité
+\end{itemize}
+
+Ces contraintes sont rarement considérées de manière systématique dans les phases d'idéation précoces, conduisant à des révisions coûteuses ou à des solutions sous-optimales plus tard dans le développement \cite{elmontassir2024leveraging}.
+
+\subsection{Émergence de l'IA Générative}
+
+L'émergence récente de l'intelligence artificielle générative, notamment avec des modèles de diffusion comme Stable Diffusion \cite{rombach2022high}, DALL-E \cite{ramesh2021zero}, et des grands modèles de langage (LLM) comme GPT-4 \cite{openai2023gpt4} et Mistral \cite{jiang2023mistral}, ouvre de nouvelles perspectives pour révolutionner le processus de conception.
+
+Ces technologies permettent :
+\begin{itemize}[leftmargin=*]
+    \item La génération rapide de concepts visuels à partir de descriptions textuelles
+    \item L'exploration de variations de design en quelques secondes
+    \item L'analyse et l'évaluation automatisées de designs
+    \item L'intégration de contraintes techniques dès les phases amont
+\end{itemize}
+
+\subsection{Objectifs du Projet}
+
+Ce projet vise à répondre au défi d'améliorer la conception produit en phase précoce en évaluant comment les méthodes génératives peuvent aider les designers industriels à :
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Explorer rapidement} un large éventail de concepts de produits
+    \item \textbf{Raffiner} ces concepts de manière itérative
+    \item \textbf{Intégrer} les principes Design for X (DfX) dès la conception
+    \item \textbf{Réduire} le temps de développement global
+    \item \textbf{Améliorer} la qualité des designs produits
+    \item \textbf{Soutenir} la prise de décision alignée avec les objectifs industriels
+\end{enumerate}
+
+\subsection{Contribution Principale}
+
+DesignPro AI propose une plateforme web intégrée qui orchestre un workflow complet de conception assistée par IA, structuré en 4 phases distinctes :
+
+\begin{description}[leftmargin=*]
+    \item[Phase 1 - Idéation Intelligente :] Génération de prompts professionnels optimisés pour les modèles de diffusion, intégrant des méthodologies de design reconnues (TRIZ, Design Thinking, DFX, Value Engineering)
+    
+    \item[Phase 2 - Génération Visuelle :] Production de concepts visuels photoréalistes via Stable Diffusion XL, avec support du text-to-image et sketch-to-image (ControlNet)
+    
+    \item[Phase 3 - Évaluation Experte :] Analyse critique par Agent Q, combinant analyse visuelle (GPT-4 Vision) et évaluation multi-critères (esthétique, fonctionnel, innovant, fabricable, ergonomique)
+    
+    \item[Phase 4 - Validation Technique :] Simulation R.E.A.L. (Realistic Engineering Analysis Logic) pour l'analyse FEA/DFM avec calculs de résistance des matériaux
+\end{description}
+
+\subsection{Organisation du Rapport}
+
+Ce rapport est structuré comme suit :
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Section 2} présente l'état de l'art sur l'IA générative dans le design industriel
+    \item \textbf{Section 3} détaille la méthodologie et le framework DFA-IA
+    \item \textbf{Section 4} décrit l'architecture technique de l'application
+    \item \textbf{Section 5} explique le workflow complet en 4 phases
+    \item \textbf{Section 6} présente les détails d'implémentation
+    \item \textbf{Section 7} analyse les résultats et performances
+    \item \textbf{Section 8} discute des implications, limitations et perspectives
+    \item \textbf{Section 9} conclut et propose des directions futures
+\end{itemize}
+
+\subsection{Positionnement Scientifique}
+
+Ce travail s'inscrit à l'intersection de plusieurs domaines de recherche :
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Computer Vision} : Génération d'images par modèles de diffusion
+    \item \textbf{Natural Language Processing} : Utilisation de LLM pour le prompt engineering
+    \item \textbf{Human-Computer Interaction} : Collaboration humain-IA dans le processus créatif
+    \item \textbf{Design Engineering} : Intégration des méthodologies DfX
+    \item \textbf{Software Engineering} : Architecture web moderne et scalable
+\end{itemize}
+
+Notre contribution principale réside dans l'intégration cohérente de ces différentes technologies au sein d'un workflow unifié, spécifiquement adapté aux besoins du design industriel.

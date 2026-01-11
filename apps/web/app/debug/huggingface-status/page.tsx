@@ -1,3 +1,5 @@
+
+// apps/web/app/debug/huggingface-status/page.tsx
 "use client";
 import { useState, useEffect } from "react";
 

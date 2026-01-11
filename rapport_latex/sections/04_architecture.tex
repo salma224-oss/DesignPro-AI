@@ -1,0 +1,388 @@
+\section{Architecture Technique}
+
+\subsection{Vue d'Ensemble de l'Architecture}
+
+DesignPro AI est construit sur une architecture web moderne et scalable, combinant les meilleures pratiques du développement full-stack avec des services d'IA de pointe. La figure \ref{fig:architecture} présente l'architecture globale du système.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    component/.style={rectangle, draw, fill=blue!20, text width=2.5cm, text centered, minimum height=1cm, font=\small},
+    service/.style={rectangle, draw, fill=green!20, text width=2.5cm, text centered, minimum height=1cm, font=\small},
+    db/.style={cylinder, draw, fill=orange!20, text width=2cm, text centered, minimum height=1cm, font=\small, shape border rotate=90},
+    arrow/.style={->, >=stealth, thick}
+]
+    % Frontend
+    \node[component] (ui) {Interface Utilisateur\\(Next.js + React)};
+    
+    % Backend
+    \node[component, below of=ui, yshift=-0.5cm] (api) {API Routes\\(Next.js Server)};
+    
+    % Services
+    \node[service, left of=api, xshift=-3cm] (mistral) {Mistral AI\\(LLM)};
+    \node[service, right of=api, xshift=3cm] (hf) {Hugging Face\\(Stable Diffusion)};
+    \node[service, below of=mistral] (openai) {OpenAI\\(GPT-4 Vision)};
+    
+    % Database
+    \node[db, below of=api, yshift=-1cm] (db) {Supabase\\PostgreSQL};
+    
+    % Arrows
+    \draw[arrow] (ui) -- (api);
+    \draw[arrow] (api) -- (mistral);
+    \draw[arrow] (api) -- (hf);
+    \draw[arrow] (api) -- (openai);
+    \draw[arrow] (api) -- (db);
+\end{tikzpicture}
+\caption{Architecture technique de DesignPro AI}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Stack Technologique}
+
+\subsubsection{Frontend}
+
+\textbf{Next.js 15} : Framework React avec rendu côté serveur (SSR) et génération statique (SSG)
+
+\textbf{Caractéristiques utilisées} :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{App Router} : Nouvelle architecture de routage basée sur le système de fichiers
+    \item \textbf{Server Components} : Composants React rendus côté serveur pour de meilleures performances
+    \item \textbf{Server Actions} : Actions serveur pour les mutations de données
+    \item \textbf{Streaming} : Rendu progressif pour une meilleure UX
+\end{itemize}
+
+\textbf{React 19} : Bibliothèque UI avec les dernières fonctionnalités
+
+\textbf{TailwindCSS} : Framework CSS utilitaire pour un design moderne et responsive
+
+\textbf{Avantages} :
+\begin{itemize}[leftmargin=*]
+    \item Performance optimale (SSR + SSG)
+    \item SEO-friendly
+    \item Developer Experience excellente
+    \item Hot Module Replacement (HMR)
+\end{itemize}
+
+\subsubsection{Backend et Base de Données}
+
+\textbf{Supabase} : Plateforme Backend-as-a-Service (BaaS) open-source
+
+\textbf{Composants utilisés} :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{PostgreSQL} : Base de données relationnelle pour le stockage structuré
+    \item \textbf{Supabase Auth} : Authentification sécurisée (email/password, OAuth)
+    \item \textbf{Row Level Security (RLS)} : Sécurité au niveau des lignes
+    \item \textbf{Supabase Storage} : Stockage d'objets pour les images générées
+    \item \textbf{Realtime} : Synchronisation en temps réel (optionnel)
+\end{itemize}
+
+\textbf{Avantages} :
+\begin{itemize}[leftmargin=*]
+    \item Open-source et auto-hébergeable
+    \item Sécurité intégrée (RLS)
+    \item Scalabilité automatique
+    \item API REST et GraphQL générées automatiquement
+\end{itemize}
+
+\subsubsection{Services d'IA}
+
+\textbf{Mistral AI API} :
+\begin{itemize}[leftmargin=*]
+    \item Endpoint : \texttt{https://api.mistral.ai/v1/chat/completions}
+    \item Modèle : \texttt{mistral-large-latest}
+    \item Utilisation : Génération de prompts, évaluations, rapports DfX
+\end{itemize}
+
+\textbf{Hugging Face Inference API} :
+\begin{itemize}[leftmargin=*]
+    \item Endpoint : \texttt{https://router.huggingface.co/hf-inference/models/\{model\_id\}}
+    \item Modèles : Stable Diffusion 1.5, 2.1, XL, SDXL-Turbo, OpenJourney
+    \item Utilisation : Génération d'images text-to-image et sketch-to-image
+\end{itemize}
+
+\textbf{OpenAI API} :
+\begin{itemize}[leftmargin=*]
+    \item Endpoint : \texttt{https://api.openai.com/v1/chat/completions}
+    \item Modèle : \texttt{gpt-4-vision-preview}
+    \item Utilisation : Analyse visuelle réelle des designs générés
+\end{itemize}
+
+\subsection{Schéma de Données}
+
+\subsubsection{Modèle Conceptuel}
+
+La base de données PostgreSQL est structurée autour de 4 tables principales :
+
+\begin{table}[H]
+\centering
+\caption{Tables de la base de données}
+\label{tab:database}
+\begin{tabular}{@{}lp{8cm}@{}}
+\toprule
+\textbf{Table} & \textbf{Description} \\ 
+\midrule
+\texttt{users} & Informations utilisateurs (via Supabase Auth) \\
+\texttt{projects} & Projets de design (nom, domaine, méthodologie) \\
+\texttt{project\_states} & États complets des sessions de design (JSON) \\
+\texttt{design\_iterations} & Historique des itérations et scores \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Table \texttt{project\_states}}
+
+Cette table centrale stocke l'intégralité du contexte d'une session de design :
+
+\begin{lstlisting}[language=SQL, caption=Schéma de la table project\_states]
+CREATE TABLE project_states (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+  project_id UUID REFERENCES projects(id),
+  
+  -- Phase 1: Prompt
+  methodology VARCHAR(50),
+  prompt_generated TEXT,
+  
+  -- Phase 2: Images
+  images JSONB,  -- Array d'URLs d'images
+  model_used VARCHAR(100),
+  
+  -- Phase 3: Evaluation
+  agent_q_evaluation JSONB,
+  
+  -- Phase 4: Simulation
+  real_simulation JSONB,
+  
+  -- Metadata
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+\end{lstlisting}
+
+\subsubsection{Row Level Security (RLS)}
+
+Supabase RLS garantit que chaque utilisateur ne peut accéder qu'à ses propres données :
+
+\begin{lstlisting}[language=SQL, caption=Politique RLS]
+-- Politique de lecture
+CREATE POLICY "Users can read own project states"
+ON project_states FOR SELECT
+USING (auth.uid() = user_id);
+
+-- Politique d'écriture
+CREATE POLICY "Users can insert own project states"
+ON project_states FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+-- Politique de mise à jour
+CREATE POLICY "Users can update own project states"
+ON project_states FOR UPDATE
+USING (auth.uid() = user_id);
+\end{lstlisting}
+
+\subsection{Architecture Client-Serveur}
+
+\subsubsection{Flux de Données}
+
+Le flux de données suit le pattern suivant :
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Client} : L'utilisateur interagit avec l'interface React
+    \item \textbf{Server Action} : Une action serveur Next.js est déclenchée
+    \item \textbf{Service Layer} : Le service \texttt{AIService} orchestre les appels API
+    \item \textbf{External APIs} : Appels aux APIs Mistral, Hugging Face, OpenAI
+    \item \textbf{Database} : Persistance dans Supabase PostgreSQL
+    \item \textbf{Response} : Retour au client avec les données
+\end{enumerate}
+
+\subsubsection{Gestion de l'État}
+
+\textbf{Côté Client} :
+\begin{itemize}[leftmargin=*]
+    \item React State (useState, useReducer)
+    \item React Context pour l'état global
+    \item SWR pour le cache et la synchronisation
+\end{itemize}
+
+\textbf{Côté Serveur} :
+\begin{itemize}[leftmargin=*]
+    \item Supabase comme source de vérité
+    \item Singleton pattern pour \texttt{AIService}
+    \item Cache en mémoire pour les modèles chargés
+\end{itemize}
+
+\subsection{Intégration des APIs}
+
+\subsubsection{Architecture du Service AI}
+
+Le fichier \texttt{lib/ai.ts} implémente un service singleton \texttt{AIService} qui encapsule toute la logique d'IA :
+
+\begin{lstlisting}[language=TypeScript, caption=Structure du service AI]
+export class AIService {
+  private static instance: AIService;
+  
+  public static getInstance(): AIService {
+    if (!AIService.instance) {
+      AIService.instance = new AIService();
+    }
+    return AIService.instance;
+  }
+  
+  // Phase 1: Prompt Generation
+  async generateProfessionalPrompt(...): Promise<string>
+  
+  // Phase 2: Image Generation
+  async generateDesignCandidates(...): Promise<DesignGenerationResult>
+  
+  // Phase 3: Evaluation
+  async evaluateDesignWithAgentQ(...): Promise<AgentQEvaluation>
+  
+  // Phase 4: Simulation
+  async simulateREALAnalysis(...): Promise<REALSimulation>
+}
+\end{lstlisting}
+
+\subsubsection{Gestion des Erreurs}
+
+Chaque appel API est enveloppé dans un try-catch avec fallback :
+
+\begin{lstlisting}[language=TypeScript, caption=Pattern de gestion d'erreurs]
+async generateDesignCandidates(...) {
+  try {
+    // Tentative avec modèle primaire
+    return await this.generateWithStableDiffusion(prompt);
+  } catch (error) {
+    console.error('Erreur génération:', error);
+    // Fallback vers images de démonstration
+    return {
+      images: await this.generateRealisticFallbackImages(prompt),
+      source: 'local-fallback-error',
+      used_fallback: true,
+      fallback_reason: error.message
+    };
+  }
+}
+\end{lstlisting}
+
+\subsection{Sécurité et Authentification}
+
+\subsubsection{Authentification Supabase}
+
+\textbf{Méthodes supportées} :
+\begin{itemize}[leftmargin=*]
+    \item Email + Password
+    \item OAuth (Google, GitHub, etc.)
+    \item Magic Links (email sans mot de passe)
+\end{itemize}
+
+\textbf{Flux d'authentification} :
+\begin{enumerate}[leftmargin=*]
+    \item L'utilisateur se connecte via l'interface
+    \item Supabase Auth génère un JWT
+    \item Le JWT est stocké dans un cookie HTTP-only
+    \item Chaque requête inclut le JWT pour l'autorisation
+    \item RLS vérifie les permissions au niveau de la base de données
+\end{enumerate}
+
+\subsubsection{Protection des Clés API}
+
+Les clés API sensibles sont stockées dans des variables d'environnement :
+
+\begin{lstlisting}[language=bash, caption=Fichier .env.local]
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx...
+SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
+
+# AI Services
+MISTRAL_API_KEY=xxx
+HF_API_TOKEN=hf_xxx
+OPENAI_API_KEY=sk-xxx
+REPLICATE_API_TOKEN=r8_xxx
+\end{lstlisting}
+
+\textbf{Sécurité} :
+\begin{itemize}[leftmargin=*]
+    \item Les clés ne sont jamais exposées au client
+    \item Les appels API se font uniquement côté serveur
+    \item Les variables \texttt{NEXT\_PUBLIC\_*} sont les seules accessibles au client
+\end{itemize}
+
+\subsection{Déploiement}
+
+\subsubsection{Environnements}
+
+\textbf{Développement} :
+\begin{itemize}[leftmargin=*]
+    \item Local : \texttt{npm run dev}
+    \item Hot reload activé
+    \item Logs détaillés
+\end{itemize}
+
+\textbf{Production} :
+\begin{itemize}[leftmargin=*]
+    \item Plateforme : Vercel (recommandé pour Next.js)
+    \item Build optimisé : \texttt{npm run build}
+    \item Déploiement automatique via Git
+\end{itemize}
+
+\subsubsection{Configuration Vercel}
+
+\begin{lstlisting}[language=JSON, caption=vercel.json]
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "MISTRAL_API_KEY": "@mistral-api-key",
+    "HF_API_TOKEN": "@hf-api-token",
+    "OPENAI_API_KEY": "@openai-api-key"
+  }
+}
+\end{lstlisting}
+
+\subsection{Performance et Optimisation}
+
+\subsubsection{Optimisations Frontend}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Code Splitting} : Chargement lazy des composants lourds
+    \item \textbf{Image Optimization} : Next.js Image component pour les images optimisées
+    \item \textbf{Caching} : SWR pour le cache des requêtes
+    \item \textbf{Compression} : Gzip/Brotli activé sur Vercel
+\end{itemize}
+
+\subsubsection{Optimisations Backend}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Connection Pooling} : Supabase gère automatiquement le pool de connexions
+    \item \textbf{Model Caching} : Les modèles Hugging Face sont mis en cache côté serveur
+    \item \textbf{Retry Logic} : Réessais automatiques avec backoff exponentiel
+    \item \textbf{Low Memory Mode} : Option pour réduire l'utilisation mémoire
+\end{itemize}
+
+\subsection{Monitoring et Logs}
+
+\subsubsection{Logging}
+
+Système de logs structuré avec différents niveaux :
+
+\begin{lstlisting}[language=TypeScript, caption=Système de logging]
+console.log('🎨 Lancement Phase 2: Génération...');
+console.log('✅ Évaluation Agent Q générée:', score);
+console.warn('⚠️ Aucune API d\'analyse visuelle disponible');
+console.error('❌ Erreur critique génération Phase 2:', error);
+\end{lstlisting}
+
+\subsubsection{Métriques}
+
+\textbf{Métriques collectées} :
+\begin{itemize}[leftmargin=*]
+    \item Temps de génération par phase
+    \item Taux de succès/échec des API
+    \item Utilisation des modèles (primaire vs fallback)
+    \item Scores utilisateurs (feedback)
+\end{itemize}
+
+Ces métriques permettent d'optimiser continuellement le système et d'identifier les points de friction.

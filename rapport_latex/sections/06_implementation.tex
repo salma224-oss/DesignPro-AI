@@ -1,0 +1,557 @@
+\section{Implémentation}
+
+Cette section présente les détails techniques de l'implémentation de DesignPro AI, en se concentrant sur les aspects critiques du code et les décisions d'architecture.
+
+\subsection{Structure du Code}
+
+\subsubsection{Organisation des Fichiers}
+
+\begin{lstlisting}[caption=Structure du projet]
+mon-app-design/
+├── apps/
+│   └── web/
+│       ├── app/                    # Next.js App Router
+│       │   ├── (auth)/            # Routes authentification
+│       │   ├── dashboard/         # Interface principale
+│       │   └── api/               # API routes
+│       ├── components/            # Composants React
+│       │   ├── ui/               # Composants UI réutilisables
+│       │   └── design/           # Composants spécifiques design
+│       ├── lib/                   # Logique métier
+│       │   ├── ai.ts             # Service IA (core)
+│       │   ├── supabase.ts       # Client Supabase
+│       │   └── utils.ts          # Utilitaires
+│       └── styles/               # Styles globaux
+├── packages/                      # Packages partagés (monorepo)
+└── supabase/                     # Configuration Supabase
+    ├── migrations/               # Migrations SQL
+    └── seed.sql                  # Données de test
+\end{lstlisting}
+
+\subsubsection{Fichier Core : \texttt{lib/ai.ts}}
+
+Le fichier \texttt{ai.ts} contient ~1000 lignes de code TypeScript structurées comme suit :
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Imports et Configuration} (lignes 1-50)
+    \item \textbf{Types et Interfaces} (lignes 51-150)
+    \item \textbf{Classe AIService} (lignes 151-1000)
+    \begin{itemize}
+        \item Phase 1 : Génération de prompts (lignes 200-350)
+        \item Phase 2 : Génération d'images (lignes 351-600)
+        \item Phase 3 : Agent Q (lignes 601-750)
+        \item Phase 4 : R.E.A.L. (lignes 751-900)
+        \item Utilitaires et fallbacks (lignes 901-1000)
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Implémentation des Phases}
+
+\subsubsection{Phase 1 : Génération de Prompts}
+
+\textbf{Fonction principale} :
+
+\begin{lstlisting}[language=TypeScript, caption=Génération de prompt avec Mistral]
+async generateProfessionalPrompt(
+  projectData: any,
+  methodology: string,
+  methodologyParams?: Record<string, any>
+): Promise<string> {
+  try {
+    // Construction du prompt système
+    const systemPrompt = this.buildMethodologyPrompt(
+      methodology, 
+      projectData
+    );
+    
+    // Appel Mistral AI
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'mistral-large-latest',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Générez un prompt pour: ${projectData.description}` }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      })
+    });
+    
+    const data = await response.json();
+    return data.choices[0].message.content;
+    
+  } catch (error) {
+    console.error('Erreur génération prompt:', error);
+    return this.generateFallbackPrompt(projectData, methodology);
+  }
+}
+\end{lstlisting}
+
+\textbf{Gestion des erreurs} :
+
+\begin{itemize}[leftmargin=*]
+    \item Retry automatique (3 tentatives)
+    \item Fallback vers templates pré-définis
+    \item Logging détaillé pour debugging
+\end{itemize}
+
+\subsubsection{Phase 2 : Génération d'Images}
+
+\textbf{Fonction principale} :
+
+\begin{lstlisting}[language=TypeScript, caption=Génération d'images avec Stable Diffusion]
+async generateDesignCandidates(
+  prompt: string,
+  modelId: string,
+  settings: GenerationSettings
+): Promise<DesignGenerationResult> {
+  
+  const models = [
+    'stabilityai/stable-diffusion-xl-base-1.0',
+    'stabilityai/stable-diffusion-2-1',
+    'runwayml/stable-diffusion-v1-5'
+  ];
+  
+  for (const model of models) {
+    try {
+      const result = await this.generateWithHuggingFace(
+        model, 
+        prompt, 
+        settings
+      );
+      
+      return {
+        images: result.images,
+        source: 'huggingface',
+        model: model,
+        used_fallback: false
+      };
+      
+    } catch (error) {
+      console.warn(`Échec modèle ${model}, tentative suivante...`);
+      continue;
+    }
+  }
+  
+  // Fallback final : images de démonstration
+  return {
+    images: await this.generateRealisticFallbackImages(prompt),
+    source: 'fallback',
+    used_fallback: true,
+    fallback_reason: 'Tous les modèles ont échoué'
+  };
+}
+\end{lstlisting}
+
+\textbf{Gestion du Cold Start} :
+
+\begin{lstlisting}[language=TypeScript, caption=Gestion du cold start Hugging Face]
+async generateWithHuggingFace(
+  modelId: string, 
+  prompt: string, 
+  settings: any
+) {
+  let attempts = 0;
+  const MAX_RETRIES = 3;
+  
+  while (attempts < MAX_RETRIES) {
+    try {
+      const response = await fetch(
+        `https://router.huggingface.co/hf-inference/models/${modelId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${HF_API_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            inputs: prompt,
+            parameters: {
+              num_inference_steps: settings.quality,
+              guidance_scale: settings.guidanceScale,
+              width: settings.width,
+              height: settings.height
+            },
+            options: { wait_for_model: true }
+          })
+        }
+      );
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        return { images: [await this.blobToBase64(blob)] };
+      }
+      
+      // Gestion du cold start
+      if (response.status === 503) {
+        const errorData = await response.json();
+        const waitTime = errorData.estimated_time || 20;
+        
+        console.log(`Modèle en chargement, attente ${waitTime}s...`);
+        await new Promise(resolve => setTimeout(resolve, (waitTime + 2) * 1000));
+        attempts++;
+        continue;
+      }
+      
+      throw new Error(`HTTP ${response.status}`);
+      
+    } catch (error) {
+      attempts++;
+      if (attempts >= MAX_RETRIES) throw error;
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+}
+\end{lstlisting}
+
+\subsubsection{Phase 3 : Agent Q}
+
+\textbf{Analyse visuelle avec GPT-4 Vision} :
+
+\begin{lstlisting}[language=TypeScript, caption=Analyse visuelle GPT-4 Vision]
+private async analyzeDesignImageWithVision(
+  imageUrl: string
+): Promise<string> {
+  
+  if (OPENAI_API_KEY && OPENAI_API_KEY !== 'your-openai-api-key-here') {
+    try {
+      const response = await fetch(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'gpt-4-vision-preview',
+            messages: [{
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: this.buildVisionAnalysisPrompt()
+                },
+                {
+                  type: 'image_url',
+                  image_url: { 
+                    url: imageUrl,
+                    detail: 'high'
+                  }
+                }
+              ]
+            }],
+            max_tokens: 500,
+            temperature: 0.3
+          })
+        }
+      );
+      
+      const data = await response.json();
+      return data.choices[0].message.content;
+      
+    } catch (error) {
+      console.error('Erreur GPT-4 Vision:', error);
+      // Fallback vers Replicate ou description contextuelle
+      return this.generateContextualDescription(imageUrl);
+    }
+  }
+  
+  return this.generateContextualDescription(imageUrl);
+}
+\end{lstlisting}
+
+\subsection{Interface Utilisateur}
+
+\subsubsection{Composants React Principaux}
+
+\textbf{DesignWorkflow} : Composant principal orchestrant le workflow
+
+\begin{lstlisting}[language=TypeScript, caption=Composant DesignWorkflow]
+'use client';
+
+import { useState } from 'react';
+import { AIService } from '@/lib/ai';
+
+export function DesignWorkflow() {
+  const [phase, setPhase] = useState<1 | 2 | 3 | 4>(1);
+  const [prompt, setPrompt] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [evaluation, setEvaluation] = useState<any>(null);
+  
+  const aiService = AIService.getInstance();
+  
+  const handlePhase1 = async () => {
+    const generatedPrompt = await aiService.generateProfessionalPrompt(
+      projectData,
+      methodology
+    );
+    setPrompt(generatedPrompt);
+    setPhase(2);
+  };
+  
+  const handlePhase2 = async () => {
+    const result = await aiService.generateDesignCandidates(
+      prompt,
+      selectedModel,
+      settings
+    );
+    setImages(result.images);
+    setPhase(3);
+  };
+  
+  const handlePhase3 = async (imageUrl: string) => {
+    const eval = await aiService.evaluateDesignWithAgentQ(
+      imageUrl,
+      prompt,
+      methodology
+    );
+    setEvaluation(eval);
+    setPhase(4);
+  };
+  
+  return (
+    <div className="workflow-container">
+      {phase === 1 && <Phase1Component onNext={handlePhase1} />}
+      {phase === 2 && <Phase2Component prompt={prompt} onNext={handlePhase2} />}
+      {phase === 3 && <Phase3Component images={images} onNext={handlePhase3} />}
+      {phase === 4 && <Phase4Component evaluation={evaluation} />}
+    </div>
+  );
+}
+\end{lstlisting}
+
+\subsubsection{Styling avec TailwindCSS}
+
+\begin{lstlisting}[language=HTML, caption=Exemple de composant stylé]
+<div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 shadow-lg">
+  <h2 className="text-2xl font-bold text-gray-800 mb-4">
+    Phase 1 : Génération de Prompt
+  </h2>
+  
+  <div className="space-y-4">
+    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+      <option>Meuble</option>
+      <option>Électronique</option>
+      <option>Automobile</option>
+    </select>
+    
+    <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+      Générer le Prompt
+    </button>
+  </div>
+</div>
+\end{lstlisting}
+
+\subsection{Persistance des Données}
+
+\subsubsection{Sauvegarde dans Supabase}
+
+\begin{lstlisting}[language=TypeScript, caption=Sauvegarde de l'état du projet]
+async saveProjectState(state: ProjectState) {
+  const { data, error } = await supabase
+    .from('project_states')
+    .insert({
+      user_id: user.id,
+      project_id: state.projectId,
+      methodology: state.methodology,
+      prompt_generated: state.prompt,
+      images: state.images,
+      agent_q_evaluation: state.evaluation,
+      real_simulation: state.simulation
+    });
+    
+  if (error) {
+    console.error('Erreur sauvegarde:', error);
+    throw error;
+  }
+  
+  return data;
+}
+\end{lstlisting}
+
+\subsubsection{Chargement de l'Historique}
+
+\begin{lstlisting}[language=TypeScript, caption=Chargement de l'historique]
+async loadProjectHistory(projectId: string) {
+  const { data, error } = await supabase
+    .from('project_states')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false });
+    
+  if (error) throw error;
+  return data;
+}
+\end{lstlisting}
+
+\subsection{Optimisations}
+
+\subsubsection{Caching}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Modèles Hugging Face} : Mis en cache côté serveur après premier chargement
+    \item \textbf{Prompts générés} : Stockés en base pour réutilisation
+    \item \textbf{Images} : Stockées dans Supabase Storage avec CDN
+\end{itemize}
+
+\subsubsection{Lazy Loading}
+
+\begin{lstlisting}[language=TypeScript, caption=Lazy loading des composants]
+import dynamic from 'next/dynamic';
+
+const Phase3Component = dynamic(() => import('./Phase3'), {
+  loading: () => <LoadingSpinner />,
+  ssr: false
+});
+\end{lstlisting}
+
+\subsubsection{Mode Low Memory}
+
+Pour les utilisateurs avec GPU limité :
+
+\begin{lstlisting}[language=TypeScript, caption=Mode low memory]
+if (settings.lowMemoryMode) {
+  pipeline = StableDiffusionPipeline.from_pretrained(
+    modelId,
+    torch_dtype=torch.float16,
+    use_safetensors=True,
+    variant="fp16"
+  );
+  pipeline.enable_attention_slicing();
+  pipeline.enable_vae_slicing();
+}
+\end{lstlisting}
+
+\subsection{Tests}
+
+\subsubsection{Tests Unitaires}
+
+\begin{lstlisting}[language=TypeScript, caption=Exemple de test]
+import { AIService } from '@/lib/ai';
+
+describe('AIService', () => {
+  let aiService: AIService;
+  
+  beforeEach(() => {
+    aiService = AIService.getInstance();
+  });
+  
+  test('generateProfessionalPrompt retourne un prompt valide', async () => {
+    const prompt = await aiService.generateProfessionalPrompt(
+      { category: 'meuble', focus: 'ergonomie' },
+      'DFX'
+    );
+    
+    expect(prompt).toBeTruthy();
+    expect(prompt.length).toBeGreaterThan(50);
+    expect(prompt).toContain('ergonomic');
+  });
+  
+  test('generateDesignCandidates retourne 4 images', async () => {
+    const result = await aiService.generateDesignCandidates(
+      'a modern chair',
+      'stable-diffusion-xl',
+      { numImages: 4 }
+    );
+    
+    expect(result.images).toHaveLength(4);
+    expect(result.source).toBe('huggingface');
+  });
+});
+\end{lstlisting}
+
+\subsubsection{Tests d'Intégration}
+
+Tests du workflow complet end-to-end :
+
+\begin{lstlisting}[language=TypeScript, caption=Test E2E]
+test('Workflow complet Phase 1-4', async () => {
+  // Phase 1
+  const prompt = await aiService.generateProfessionalPrompt(...);
+  expect(prompt).toBeTruthy();
+  
+  // Phase 2
+  const images = await aiService.generateDesignCandidates(prompt, ...);
+  expect(images.images.length).toBe(4);
+  
+  // Phase 3
+  const evaluation = await aiService.evaluateDesignWithAgentQ(
+    images.images[0], 
+    prompt, 
+    'DFX'
+  );
+  expect(evaluation.overall_score).toBeGreaterThan(0);
+  expect(evaluation.overall_score).toBeLessThanOrEqual(10);
+  
+  // Phase 4
+  const simulation = await aiService.simulateREALAnalysis(...);
+  expect(simulation.fea_analysis).toBeDefined();
+  expect(simulation.dfm_analysis).toBeDefined();
+});
+\end{lstlisting}
+
+\subsection{Déploiement}
+
+\subsubsection{Configuration Vercel}
+
+\begin{lstlisting}[language=JSON, caption=vercel.json]
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key",
+    "MISTRAL_API_KEY": "@mistral-api-key",
+    "HF_API_TOKEN": "@hf-api-token",
+    "OPENAI_API_KEY": "@openai-api-key"
+  },
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 60
+    }
+  }
+}
+\end{lstlisting}
+
+\subsubsection{CI/CD Pipeline}
+
+\begin{lstlisting}[language=YAML, caption=.github/workflows/deploy.yml]
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Run tests
+        run: npm test
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.ORG_ID }}
+          vercel-project-id: ${{ secrets.PROJECT_ID }}
+\end{lstlisting}
+
+Cette implémentation robuste garantit la fiabilité, la performance et la maintenabilité de DesignPro AI en production.

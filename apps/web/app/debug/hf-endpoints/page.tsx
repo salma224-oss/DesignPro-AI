@@ -1,3 +1,5 @@
+
+// apps/web/app/debug/hf-endpoints/page.tsx
 "use client";
 import { useState } from "react";
 

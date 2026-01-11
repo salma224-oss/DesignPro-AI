@@ -1,3 +1,5 @@
+
+// apps/web/components/ideation/MethodologySelector.tsx
 "use client";
 
 const METHODS = [

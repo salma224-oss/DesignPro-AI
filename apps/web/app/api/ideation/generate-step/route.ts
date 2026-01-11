@@ -1,3 +1,5 @@
+
+// apps/web/app/api/ideation/generate-step/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { AIService } from '~/lib/ai';
 

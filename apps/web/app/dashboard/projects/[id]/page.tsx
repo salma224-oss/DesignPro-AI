@@ -1,3 +1,5 @@
+
+// apps/web/app/dashboard/projects/[id]/page.tsx
 "use client";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
