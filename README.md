@@ -1,16 +1,16 @@
-# 🚀 DesignPro AI - Plateforme de Conception Industrielle Intelligente
+#  DesignPro AI - Plateforme de Conception Industrielle Intelligente
 
 DesignPro AI est une application SaaS innovante qui révolutionne le processus de design industriel grâce à l'intelligence artificielle générative. Elle accompagne les créateurs de l'idéation à la validation technique, en passant par la visualisation haute fidélité.
 
 ![DesignPro AI Banner](DESIGN.png)
 
-## ✨ Fonctionnalités Clés
+##  Fonctionnalités Clés
 
-### 🧠 1. Idéation Assistée par IA
+###  1. Idéation Assistée par IA
 - **Prompt Engineering Automatique** : Transformation de descriptions simples en prompts techniques détaillés via **Mistral AI**.
 - **Méthodologies Intégrées** : Support pour TRIZ, Design Thinking, et biomimétisme pour guider la créativité.
 
-### 🎨 2. Génération Visuelle Avancée
+###   2. Génération Visuelle Avancée
 - **Moteur Multi-Modèles** : Utilisation de **Stable Diffusion XL (SDXL)**, ControlNet et Img2Img via l'API Hugging Face.
 - **Sketch-to-Render** : Transformez vos croquis crayonnés en rendus photoréalistes en quelques secondes.
 - **Variations Parallèles** : Génération simultanée de 4 alternatives de design pour explorer plus d'options.
