@@ -1,10 +1,10 @@
 # RAPPORT DE PROJET : DESIGNPRO AI
 ## Plateforme de Conception Industrielle Assistée par Intelligence Artificielle Générative
 
-**Auteur :** Votre Nom  
-**Institution :** Votre École/Université  
+**Auteur :** oulkiass salma / tribak mohamed
+**Institution :** ensam
 **Date :** Janvier 2026  
-**Email :** votre.email@example.com
+**Email :** salmaoulk18@gmail.com
 
 ---
 
