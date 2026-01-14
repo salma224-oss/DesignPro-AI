@@ -15,18 +15,18 @@ DesignPro AI est une application SaaS innovante qui révolutionne le processus d
 - **Sketch-to-Render** : Transformez vos croquis crayonnés en rendus photoréalistes en quelques secondes.
 - **Variations Parallèles** : Génération simultanée de 4 alternatives de design pour explorer plus d'options.
 
-### 🤖 3. Experts Virtuels & Validation
+###   3. Experts Virtuels & Validation
 - **Agent Q (Qualité)** : Analyse critique automatique de l'esthétique et de l'ergonomie.
 - **Simulation R.E.A.L.** : Estimation prédictive de la fabricabilité (DFM), des coûts et de l'impact environnemental.
 
-### 📁 4. Gestion de Projet Complète
+###   4. Gestion de Projet Complète
 - Tableau de bord intuitif avec suivi d'avancement automatique.
 - Collaboration en temps réel sur les projets.
 - Génération de fichiers STEP (CAO) préliminaires.
 
 ---
 
-## 🛠️ Stack Technique
+##   Stack Technique
 
 - **Frontend** : [Next.js 14](https://nextjs.org/) (App Router), React, TypeScript, Tailwind CSS.
 - **Backend** : [Supabase](https://supabase.com/) (PostgreSQL, Auth, RLS).
@@ -37,7 +37,7 @@ DesignPro AI est une application SaaS innovante qui révolutionne le processus d
 
 ---
 
-## 🚀 Installation et Démarrage
+##   Installation et Démarrage
 
 ### Prérequis
 - Node.js 18+
@@ -86,7 +86,7 @@ Accédez à l'application sur [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 📖 Guide d'Utilisation Rapide
+##  Guide d'Utilisation Rapide
 
 1.  **Créer un Projet** : Cliquez sur "Nouveau Projet", définissez le nom et le domaine (ex: Mobilier, Transport).
 2.  **Lancer l'Idéation** : Décrivez votre idée. L'IA générera un prompt professionnel.
@@ -96,7 +96,7 @@ Accédez à l'application sur [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 🛡️ Structure de la Base de Données
+##   Structure de la Base de Données
 
 - **`profiles`** : Informations utilisateurs étendues.
 - **`projects`** : Métadonnées du projet (Nom, Description, Méthode).
@@ -105,14 +105,8 @@ Accédez à l'application sur [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 🤝 Contribution
 
-Les contributions sont les bienvenues ! Veuillez ouvrir une issue pour discuter des changements majeurs avant de soumettre une Pull Request.
 
----
-<<<<<<< HEAD
-=======
-
-## 📄 Licence
+##  Licence
 
 >>>>>>> 69db375c958784f1cfdec7ab4b1cae2dd2a56a1c
