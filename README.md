@@ -113,6 +113,51 @@ Les benchmarks internes montrent une accélération drastique des phases prélim
     ```
     L'application sera accessible à l'adresse `http://localhost:3000`.
 
+    # Exemples Concrets du Fonctionnement des Agents IA
+
+Voici des scénarios détaillés pour illustrer le comportement de l'Agent Q et de la Simulation R.E.A.L. face à un même design.
+
+## Scénario : Le Design d'une "Chaise en Lévitation Minimaliste"
+Imaginez que l'utilisateur a généré une image d'une chaise futuriste très fine, avec un seul pied central en verre transparent, sans accoudoirs.
+
+### 1. Exemple : AGENT Q (L'Auditeur Design)
+*Son rôle est de juger la qualité perçue et l'expérience utilisateur.*
+
+*   **Ce que voit l'IA (Vision BLIP-2)** : "Transparent glass chair, single thin central column, sleek curved seat, no armrests, minimalist aesthetic."
+*   **Le Raisonnement de l'Agent Q (Mistral)** :
+    *   *Esthétique :* "C'est très pur et moderne. Le verre transparent est tendance." -> **Note Esthétique : 9/10**
+    *   *Ergonomie :* "Attention, le siège est courbé mais rigide (verre). Pas d'accoudoirs pour se reposer. Ça va être inconfortable sur la durée." -> **Note Ergonomie : 4/10**
+    *   *Fonctionnalité :* "Le verre est glissant. Risque de chute." -> **Note Fonctionnelle : 5/10**
+
+*   **Résultat Final (Output)** :
+    > **Score Global : 6.5/10**
+    > *   ** Points Forts :** Impact visuel exceptionnel, pureté formelle.
+    > *   ** Points Faibles :** Confort très limité, sensation de froideur du matériau.
+    > *   ** Suggestion :** "Ajouter une fine couche de coussin en silicone translucide pour améliorer l'assise sans gâcher la transparence."
+
+---
+
+### 2. Exemple : MOTEUR R.E.A.L. (L'Ingénieur Technique)
+*Son rôle est de juger la physique et la fabricabilité.*
+
+*   **Le Raisonnement de R.E.A.L. (Vision + Physique)** :
+    *   *Analyse Structurelle :* "Je vois une colonne centrale très fine (probablement < 5cm de diamètre) supportant tout le poids. Matériau identifié : Verre."
+    *   *Déduction de Stress :* "Verre + Colonne fine + Poids d'un humain (80kg) = **Risque critique de flambage (cassure)** à la base du pied." -> **Facteur de Sécurité : 0.8 (Dangereux)**
+    *   *Analyse Fabrication (DFM) :* "Mouler une telle pièce en verre d'un seul bloc est extrêmement complexe et coûteux (moule spécial)." -> **Score Manufacturabilité : 30/100**
+
+*   **Résultat Final (Output)** :
+    > **Alerte Critique : Échec Simulation**
+    > *   ** Problème Identifié :** La colonne centrale est trop fine pour supporter la charge en compression avec du verre standard.
+    > *   ** Estimation Coût :** 850€ / pièce (Très élevé à cause du taux de rebut).
+    > *   ** Solution Technique :** "Remplacer le verre structurel par du Polycarbonate Makrolon (200x plus résistant) ou insérer une âme en acier invisible à l'intérieur du pied."
+
+---
+
+### Résumé de la Différence
+*   **Agent Q** a dit : "C'est beau mais pas confortable." (Subjectif / Humain)
+*   **R.E.A.L.** a dit : "Ça va casser et c'est trop cher à fabriquer." (Objectif / Physique)
+
+
 ## Contribution
 Les contributions sont les bienvenues, notamment sur l'amélioration des algorithmes de scoring de l'Agent Q et l'optimisation des prompts de génération. Merci de respecter les conventions de code établies (ESLint).
 
